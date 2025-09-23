@@ -4,6 +4,8 @@ import '../models/carrito_item.dart';
 import '../models/cliente.dart';
 import '../models/tipo_pago.dart';
 import '../data/data_provider.dart';
+import '../widgets/cliente_vista_reducida_widget.dart';
+import '../widgets/articulo_listado_reducido_widget.dart';
 
 class FinalizarVentaScreen extends StatefulWidget {
   final List<CarritoItem> carrito;
@@ -255,33 +257,36 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Información del cliente
-            _buildInfoCliente(),
+            // Información del cliente usando el widget reutilizable
+            ClienteVistaReducidaWidget(cliente: widget.cliente),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // Resumen de artículos
-            _buildResumenArticulos(),
-
-            const SizedBox(height: 20),
-
-            // Total de la venta
+            // Total de la venta (con padding reducido)
             _buildTotalVenta(total),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Métodos de pago con montos
             _buildMetodosPago(),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Estado del pago
             _buildEstadoPago(totalPagos, diferencia),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Información del cambio
             if (cambio > 0) _buildCambio(cambio),
+
+            if (cambio > 0) const SizedBox(height: 16),
+
+            // Listado de artículos usando el widget reutilizable (solo vista) - Al final
+            ArticuloListadoReducidoWidget(
+              items: widget.carrito,
+              editable: false,
+            ),
           ],
         ),
       ),
@@ -289,188 +294,22 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     );
   }
 
-  Widget _buildInfoCliente() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.person, color: Colors.blue),
-                SizedBox(width: 8),
-                Text(
-                  'Información del Cliente',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'ID: ${widget.cliente.idCliente}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    widget.cliente.tipo,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.cliente.nombre,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResumenArticulos() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.shopping_bag, color: Colors.green),
-                SizedBox(width: 8),
-                Text(
-                  'Artículos en la Venta',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: widget.carrito.length,
-              separatorBuilder: (context, index) => const Divider(),
-              itemBuilder: (context, index) {
-                final item = widget.carrito[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.articulo.descripcion,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              'Código: ${item.articulo.codigo}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          '${item.cantidad}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          '\$${item.precioVenta.toStringAsFixed(2)}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          '\$${item.subtotal.toStringAsFixed(2)}',
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const Divider(thickness: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total de artículos: ${_calcularTotalArticulos()}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTotalVenta(double total) {
     return Card(
-      // ignore: deprecated_member_use
       color: Colors.green.withOpacity(0.1),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
               'Total de la Venta:',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
               '\$${total.toStringAsFixed(2)}',
               style: const TextStyle(
-                fontSize: 28,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.green,
               ),
@@ -571,7 +410,6 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     final estado = _getEstadoPagoTexto();
 
     return Card(
-      // ignore: deprecated_member_use
       color: color.withOpacity(0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -640,7 +478,6 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
 
   Widget _buildCambio(double cambio) {
     return Card(
-      // ignore: deprecated_member_use
       color: Colors.blue.withOpacity(0.1),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -692,7 +529,6 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            // ignore: deprecated_member_use
             color: Colors.grey.withOpacity(0.3),
             spreadRadius: 1,
             blurRadius: 3,

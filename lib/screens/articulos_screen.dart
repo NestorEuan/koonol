@@ -32,17 +32,6 @@ class _ArticulosWidgetState extends State<ArticulosWidget> {
   }
 
   @override
-  void didUpdateWidget(ArticulosWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Actualizar el carrito local cuando el widget padre lo actualice
-    if (widget.carrito != oldWidget.carrito) {
-      setState(() {
-        _carritoLocal = List.from(widget.carrito);
-      });
-    }
-  }
-
-  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -54,12 +43,10 @@ class _ArticulosWidgetState extends State<ArticulosWidget> {
     });
 
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _articulos = DataProvider.getArticulos();
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _articulos = DataProvider.getArticulos();
+        _isLoading = false;
+      });
     });
   }
 
@@ -96,10 +83,8 @@ class _ArticulosWidgetState extends State<ArticulosWidget> {
       }
     });
 
-    // Notificar al widget padre
     widget.onCarritoChanged(_carritoLocal);
 
-    // Mostrar snackbar
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${articulo.descripcion} agregado al carrito'),
@@ -168,9 +153,10 @@ class _ArticulosWidgetState extends State<ArticulosWidget> {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.75,
+                          crossAxisSpacing: 4,
+                          mainAxisSpacing: 4,
+                          childAspectRatio:
+                              0.75, // Ajustado para el contenido más compacto
                         ),
                     itemCount: _articulos.length,
                     itemBuilder: (context, index) {
