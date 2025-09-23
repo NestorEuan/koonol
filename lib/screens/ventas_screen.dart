@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:koonol/screens/articulos_screen.dart';
+import 'package:koonol/screens/carrito_screen.dart';
+import 'package:koonol/screens/finalizar_venta.dart';
 import '../models/cliente.dart';
-import '../models/articulo.dart';
 import '../models/carrito_item.dart';
-import '../data/data_provider.dart';
 import '../widgets/cliente_search_widget.dart';
-import '../widgets/articulo_item_widget.dart';
 
 class VentasScreen extends StatefulWidget {
   const VentasScreen({super.key});
@@ -15,11 +15,7 @@ class VentasScreen extends StatefulWidget {
 
 class _VentasScreenState extends State<VentasScreen> {
   Cliente? _clienteSeleccionado;
-  List<Articulo> _articulos = [];
-  final List<CarritoItem> _carrito = [];
-  final TextEditingController _searchArticuloController =
-      TextEditingController();
-  bool _isLoading = false;
+  List<CarritoItem> _carrito = [];
 
   @override
   void initState() {
@@ -29,20 +25,16 @@ class _VentasScreenState extends State<VentasScreen> {
 
   @override
   void dispose() {
-    _searchArticuloController.dispose();
     super.dispose();
   }
 
   void _cargarArticulos() {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() {});
 
     // Simulamos un pequeño delay para mostrar el loading
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
-        _articulos = DataProvider.getArticulos();
-        _isLoading = false;
+        // _articulos = DataProvider.getArticulos();
       });
     });
   }
@@ -53,73 +45,25 @@ class _VentasScreenState extends State<VentasScreen> {
     });
   }
 
-  void _onSearchArticulo(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _articulos = DataProvider.getArticulos();
-      } else {
-        _articulos = DataProvider.buscarArticulos(query);
-      }
-    });
-  }
-
-  void _agregarAlCarrito(Articulo articulo, int cantidad, double precio) {
-    setState(() {
-      // Buscar si el artículo ya está en el carrito
-      final int index = _carrito.indexWhere(
-        (item) => item.articulo.id == articulo.id,
-      );
-
-      if (index >= 0) {
-        // Si ya existe, actualizar cantidad y precio
-        _carrito[index] = CarritoItem(
-          articulo: articulo,
-          cantidad: _carrito[index].cantidad + cantidad,
-          precioVenta: precio,
-        );
-      } else {
-        // Si no existe, agregar nuevo item
-        _carrito.add(
-          CarritoItem(
-            articulo: articulo,
-            cantidad: cantidad,
-            precioVenta: precio,
-          ),
-        );
-      }
-    });
-  }
-
-  int _getCantidadEnCarrito(int articuloId) {
-    final item = _carrito.where((item) => item.articulo.id == articuloId);
-    return item.isEmpty ? 0 : item.first.cantidad;
-  }
-
   double _getTotalCarrito() {
     return _carrito.fold(0.0, (total, item) => total + item.subtotal);
   }
 
   void _verCarrito() {
-    // TODO: Navegar a la pantalla del carrito
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Carrito de Compras'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Artículos: ${_carrito.length}'),
-                Text('Total: \$${_getTotalCarrito().toStringAsFixed(2)}'),
-              ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => CarritoScreen(
+              carrito: _carrito,
+              cliente: _clienteSeleccionado,
+              onCarritoChanged: (carritoActualizado) {
+                setState(() {
+                  _carrito = carritoActualizado;
+                });
+              },
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cerrar'),
-              ),
-            ],
-          ),
+      ),
     );
   }
 
@@ -144,34 +88,21 @@ class _VentasScreenState extends State<VentasScreen> {
       return;
     }
 
-    // TODO: Navegar a la pantalla de finalizar venta
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Finalizar Venta'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Cliente: ${_clienteSeleccionado!.nombre}'),
-                Text('Artículos: ${_carrito.length}'),
-                Text('Total: \$${_getTotalCarrito().toStringAsFixed(2)}'),
-              ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => FinalizarVentaScreen(
+              carrito: _carrito,
+              cliente: _clienteSeleccionado!,
+              onVentaFinalizada: () {
+                setState(() {
+                  _carrito.clear();
+                  _clienteSeleccionado = null;
+                });
+              },
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // TODO: Procesar venta
-                },
-                child: const Text('Procesar'),
-              ),
-            ],
-          ),
+      ),
     );
   }
 
@@ -222,63 +153,15 @@ class _VentasScreenState extends State<VentasScreen> {
             onClienteSelected: _onClienteSelected,
             clienteSeleccionado: _clienteSeleccionado,
           ),
-
-          // Búsqueda de artículos
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _searchArticuloController,
-              decoration: InputDecoration(
-                hintText: 'Buscar artículo por código o descripción',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon:
-                    _searchArticuloController.text.isNotEmpty
-                        ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchArticuloController.clear();
-                            _onSearchArticulo('');
-                          },
-                        )
-                        : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onChanged: _onSearchArticulo,
-            ),
-          ),
-
-          // Lista de artículos
           Expanded(
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _articulos.isEmpty
-                    ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'No se encontraron artículos',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    )
-                    : ListView.builder(
-                      itemCount: _articulos.length,
-                      itemBuilder: (context, index) {
-                        final articulo = _articulos[index];
-                        return ArticuloItemWidget(
-                          articulo: articulo,
-                          onAddToCart: _agregarAlCarrito,
-                          cantidadEnCarrito: _getCantidadEnCarrito(articulo.id),
-                        );
-                      },
-                    ),
+            child: ArticulosWidget(
+              carrito: _carrito,
+              onCarritoChanged: (carritoActualizado) {
+                setState(() {
+                  _carrito = carritoActualizado;
+                });
+              },
+            ),
           ),
         ],
       ),
