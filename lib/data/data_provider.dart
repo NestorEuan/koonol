@@ -7,7 +7,7 @@ class DataProvider {
   static final List<Map<String, dynamic>> _clasificacionesData = [
     {
       'id': 1,
-      'descripcion': 'Electrónicos',
+      'descripcion': 'Huevo',
       'idfoto': null,
       'estatus': true,
       'fecha_alta': '2024-01-01T00:00:00.000Z',
@@ -34,9 +34,9 @@ class DataProvider {
   static final List<Map<String, dynamic>> _articulosData = [
     {
       'id': 1,
-      'codigo': 'PHONE001',
-      'descripcion': 'Smartphone Samsung Galaxy A54',
-      'precio': 8999.99,
+      'codigo': 'Caja de huevo',
+      'descripcion': 'Caja de huevos',
+      'precio': 120,
       'existencia': 15,
       'idClasificacion': 1,
       'estatus': true,
@@ -45,9 +45,9 @@ class DataProvider {
     },
     {
       'id': 2,
-      'codigo': 'LAPTOP001',
-      'descripcion': 'Laptop Dell Inspiron 15',
-      'precio': 15999.99,
+      'codigo': 'Cartón de huevo',
+      'descripcion': 'Cartón de huevos',
+      'precio': 120,
       'existencia': 8,
       'idClasificacion': 1,
       'estatus': true,
@@ -56,11 +56,11 @@ class DataProvider {
     },
     {
       'id': 3,
-      'codigo': 'SHIRT001',
-      'descripcion': 'Camisa Formal Azul',
-      'precio': 599.99,
+      'codigo': 'Kilo de huevo',
+      'descripcion': 'Kilo de huevos',
+      'precio': 80,
       'existencia': 25,
-      'idClasificacion': 2,
+      'idClasificacion': 1,
       'estatus': true,
       'fecha_alta': '2024-01-01T00:00:00.000Z',
       'fecha_baja': null,
