@@ -23,7 +23,6 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
   late TextEditingController _cantidadController;
   int _cantidad = 1;
   late double _precio;
-  bool _showControls = false;
 
   @override
   void initState() {
@@ -89,14 +88,8 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
   void _agregarAlCarrito() {
     if (_cantidad > 0 && _precio > 0) {
       widget.onAddToCart(widget.articulo, _cantidad, _precio);
-      setState(() {
-        _showControls = false;
-      });
+      _mostrarMensaje('Artículo agregado al carrito');
     }
-  }
-
-  void _agregarRapido() {
-    widget.onAddToCart(widget.articulo, 1, widget.articulo.precio);
   }
 
   void _mostrarMensaje(String mensaje) {
@@ -116,313 +109,292 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
         widget.articulo.existencia <= 5 && widget.articulo.existencia > 0;
 
     return Card(
-      elevation: 4,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Imagen del artículo
-          Expanded(
-            flex: 3,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
+      margin: const EdgeInsets.all(4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Imagen del artículo (más pequeña para grid)
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: const Icon(Icons.image, size: 30, color: Colors.grey),
                 ),
-              ),
-              child: Stack(
-                children: [
-                  const Center(
-                    child: Icon(Icons.image, size: 50, color: Colors.grey),
-                  ),
-                  // Badge de cantidad en carrito
-                  if (widget.cantidadEnCarrito > 0)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${widget.cantidadEnCarrito}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  // Badge de sin existencia
-                  if (sinExistencia)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text(
-                          'Sin Stock',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-          // Información del artículo
-          Expanded(
-            flex: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Descripción
-                  Text(
-                    widget.articulo.descripcion,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Código
-                  Text(
-                    'Código: ${widget.articulo.codigo}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Precio
-                  Text(
-                    '\$${widget.articulo.precio.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Existencia
-                  Row(
+                const SizedBox(width: 12),
+                // Información del artículo
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.inventory,
-                        size: 14,
-                        color:
-                            sinExistencia
-                                ? Colors.red
-                                : existenciaBaja
-                                ? Colors.orange
-                                : Colors.green,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.articulo.descripcion,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (widget.cantidadEnCarrito > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.orange,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'En carrito: ${widget.cantidadEnCarrito}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        '${widget.articulo.existencia}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color:
-                              sinExistencia
-                                  ? Colors.red
-                                  : existenciaBaja
-                                  ? Colors.orange
-                                  : Colors.green,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        'Código: ${widget.articulo.codigo}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            'Existencia: ${widget.articulo.existencia}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color:
+                                  sinExistencia
+                                      ? Colors.red
+                                      : existenciaBaja
+                                      ? Colors.orange
+                                      : Colors.green,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (sinExistencia) ...[
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.warning,
+                              color: Colors.red,
+                              size: 14,
+                            ),
+                          ] else if (existenciaBaja) ...[
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.warning,
+                              color: Colors.orange,
+                              size: 14,
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
-
-                  const Spacer(),
-
-                  // Controles o botones
-                  if (!_showControls) ...[
-                    // Botones de acción rápida
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: sinExistencia ? null : _agregarRapido,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              minimumSize: const Size(0, 32),
-                            ),
-                            child: const Text(
-                              'Agregar',
-                              style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Controles de precio y cantidad (adaptados para grid)
+            Column(
+              children: [
+                // Primera fila: Precio y Cantidad
+                Row(
+                  children: [
+                    // Precio
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Precio',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed:
-                              sinExistencia
-                                  ? null
-                                  : () {
-                                    setState(() {
-                                      _showControls = true;
-                                    });
-                                  },
-                          icon: const Icon(Icons.settings),
-                          iconSize: 20,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                          const SizedBox(height: 2),
+                          TextFormField(
+                            controller: _precioController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              prefixText: '\$ ',
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 6,
+                              ),
+                            ),
+                            style: const TextStyle(fontSize: 12),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d+\.?\d{0,2}'),
+                              ),
+                            ],
+                            onChanged: _onPrecioChanged,
+                            enabled: !sinExistencia,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ] else ...[
-                    // Controles detallados
-                    Column(
-                      children: [
-                        // Precio
-                        TextFormField(
-                          controller: _precioController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'Precio',
-                            prefixText: '\$ ',
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                    const SizedBox(width: 8),
+                    // Cantidad
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Cantidad',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          style: const TextStyle(fontSize: 12),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'^\d+\.?\d{0,2}'),
-                            ),
-                          ],
-                          onChanged: _onPrecioChanged,
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Cantidad
-                        Row(
-                          children: [
-                            IconButton(
-                              onPressed: _decrementarCantidad,
-                              icon: const Icon(Icons.remove),
-                              iconSize: 16,
-                              constraints: const BoxConstraints(
-                                minWidth: 28,
-                                minHeight: 28,
-                              ),
-                            ),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _cantidadController,
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.center,
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 4,
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: InkWell(
+                                  onTap:
+                                      sinExistencia
+                                          ? null
+                                          : _decrementarCantidad,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Icon(
+                                      Icons.remove,
+                                      size: 14,
+                                      color:
+                                          sinExistencia
+                                              ? Colors.grey
+                                              : Colors.black,
+                                    ),
                                   ),
                                 ),
-                                style: const TextStyle(fontSize: 12),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                                onChanged: _onCantidadChanged,
                               ),
-                            ),
-                            IconButton(
-                              onPressed: _incrementarCantidad,
-                              icon: const Icon(Icons.add),
-                              iconSize: 16,
-                              constraints: const BoxConstraints(
-                                minWidth: 28,
-                                minHeight: 28,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Botones de acción
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: _agregarAlCarrito,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 6,
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _cantidadController,
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                      vertical: 6,
+                                    ),
                                   ),
-                                  minimumSize: const Size(0, 28),
-                                ),
-                                child: const Text(
-                                  'OK',
-                                  style: TextStyle(fontSize: 12),
+                                  style: const TextStyle(fontSize: 12),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  onChanged: _onCantidadChanged,
+                                  enabled: !sinExistencia,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _showControls = false;
-                                  // Resetear valores
-                                  _precio = widget.articulo.precio;
-                                  _cantidad = 1;
-                                  _precioController.text = _precio
-                                      .toStringAsFixed(2);
-                                  _cantidadController.text =
-                                      _cantidad.toString();
-                                });
-                              },
-                              icon: const Icon(Icons.close),
-                              iconSize: 16,
-                              constraints: const BoxConstraints(
-                                minWidth: 28,
-                                minHeight: 28,
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: InkWell(
+                                  onTap:
+                                      sinExistencia
+                                          ? null
+                                          : _incrementarCantidad,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Icon(
+                                      Icons.add,
+                                      size: 14,
+                                      color:
+                                          sinExistencia
+                                              ? Colors.grey
+                                              : Colors.black,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                // Segunda fila: Botón agregar
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: sinExistencia ? null : _agregarAlCarrito,
+                    icon: const Icon(Icons.add_shopping_cart, size: 16),
+                    label: const Text(
+                      'Agregar',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          sinExistencia ? Colors.grey : Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+            if (sinExistencia)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red, size: 14),
+                    SizedBox(width: 6),
+                    Text(
+                      'Producto sin existencia',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
