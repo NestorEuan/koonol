@@ -77,9 +77,13 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     final totalPagos = _calcularTotalPagos();
     final montoEfectivo = _getMontoEfectivo();
 
-    // Solo hay cambio si hay efectivo y el total de pagos es mayor al total de la venta
+    // Solo hay cambio si:
+    // 1. Hay efectivo
+    // 2. El total de pagos es mayor al total de la venta
     if (montoEfectivo > 0 && totalPagos > total) {
-      return totalPagos - total;
+      final exceso = totalPagos - total;
+      // El cambio es el menor entre el exceso y el efectivo disponible
+      return exceso <= montoEfectivo ? exceso : montoEfectivo;
     }
     return 0.0;
   }
@@ -87,6 +91,7 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
   bool _validarPago() {
     final total = _calcularTotal();
     final totalPagos = _calcularTotalPagos();
+    final montoEfectivo = _getMontoEfectivo();
 
     if (totalPagos == 0) {
       _mostrarError('Debe ingresar al menos un monto de pago');
@@ -98,11 +103,19 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
       return false;
     }
 
-    // Si hay exceso, debe haber efectivo para dar cambio
+    // Si hay exceso, validaciones específicas para efectivo
     if (totalPagos > total) {
-      final montoEfectivo = _getMontoEfectivo();
+      final exceso = totalPagos - total;
+
       if (montoEfectivo == 0) {
         _mostrarError('Para dar cambio debe haber pago en efectivo');
+        return false;
+      }
+
+      if (exceso > montoEfectivo) {
+        _mostrarError(
+          'El cambio (\$${exceso.toStringAsFixed(2)}) no puede ser mayor al efectivo recibido (\$${montoEfectivo.toStringAsFixed(2)})',
+        );
         return false;
       }
     }
@@ -253,35 +266,30 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(8), // Reducido de 16 a 8
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Información del cliente usando el widget reutilizable
             ClienteVistaReducidaWidget(cliente: widget.cliente),
 
-            const SizedBox(height: 16),
-
+            const SizedBox(height: 8), // Reducido de 16 a 8
             // Total de la venta (con padding reducido)
             _buildTotalVenta(total),
 
-            const SizedBox(height: 16),
-
+            const SizedBox(height: 8), // Reducido de 16 a 8
             // Métodos de pago con montos
             _buildMetodosPago(),
 
-            const SizedBox(height: 16),
-
+            const SizedBox(height: 8), // Reducido de 16 a 8
             // Estado del pago
             _buildEstadoPago(totalPagos, diferencia),
 
-            const SizedBox(height: 16),
-
+            const SizedBox(height: 8), // Reducido de 16 a 8
             // Información del cambio
             if (cambio > 0) _buildCambio(cambio),
 
-            if (cambio > 0) const SizedBox(height: 16),
-
+            if (cambio > 0) const SizedBox(height: 8), // Reducido de 16 a 8
             // Listado de artículos usando el widget reutilizable (solo vista) - Al final
             ArticuloListadoReducidoWidget(
               items: widget.carrito,
@@ -298,18 +306,21 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     return Card(
       color: Colors.green.withOpacity(0.1),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8), // Reducido de 12 a 8
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
               'Total de la Venta:',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ), // Reducido de 20 a 18
             ),
             Text(
               '\$${total.toStringAsFixed(2)}',
               style: const TextStyle(
-                fontSize: 24,
+                fontSize: 22, // Reducido de 24 a 22
                 fontWeight: FontWeight.bold,
                 color: Colors.green,
               ),
@@ -320,10 +331,53 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     );
   }
 
+  // Método auxiliar para crear cada item de tipo de pago
+  Widget _buildTipoPagoItem(TipoPago tipoPago) {
+    return Row(
+      children: [
+        _getTipoPagoIcon(tipoPago.descripcion),
+        const SizedBox(width: 6),
+        Expanded(
+          flex: 2,
+          child: Text(
+            tipoPago.descripcion,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          flex: 3,
+          child: TextFormField(
+            controller: _controllers[tipoPago.idTipoPago],
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              prefixText: '\$ ',
+              hintText: '0.00',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 6,
+              ),
+            ),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+            ],
+            onChanged: (valor) => _onMontoChanged(tipoPago.idTipoPago, valor),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMetodosPago() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -333,57 +387,36 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
                 SizedBox(width: 8),
                 Text(
                   'Método de Pago',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            ...(_tiposPago.map((tipoPago) {
+            const SizedBox(height: 12),
+            // Crear grid de 2 columnas
+            ...List.generate((_tiposPago.length / 2).ceil(), (rowIndex) {
+              final startIndex = rowIndex * 2;
+              final endIndex = (startIndex + 2 > _tiposPago.length)
+                  ? _tiposPago.length
+                  : startIndex + 2;
+              final rowItems = _tiposPago.sublist(startIndex, endIndex);
+
               return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
-                    _getTipoPagoIcon(tipoPago.descripcion),
-                    const SizedBox(width: 12),
+                    // Primera columna
+                    Expanded(child: _buildTipoPagoItem(rowItems[0])),
+                    const SizedBox(width: 8),
+                    // Segunda columna (puede estar vacía en la última fila)
                     Expanded(
-                      flex: 2,
-                      child: Text(
-                        tipoPago.descripcion,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _controllers[tipoPago.idTipoPago],
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: InputDecoration(
-                          prefixText: '\$ ',
-                          hintText: '0.00',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          isDense: true,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d+\.?\d{0,2}'),
-                          ),
-                        ],
-                        onChanged:
-                            (valor) =>
-                                _onMontoChanged(tipoPago.idTipoPago, valor),
-                      ),
+                      child: rowItems.length > 1
+                          ? _buildTipoPagoItem(rowItems[1])
+                          : const SizedBox(),
                     ),
                   ],
                 ),
               );
-            }).toList()),
+            }),
           ],
         ),
       ),
@@ -412,7 +445,7 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     return Card(
       color: color.withOpacity(0.1),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Reducido de 16 a 12
         child: Column(
           children: [
             Row(
@@ -420,30 +453,36 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
               children: [
                 const Text(
                   'Total Pagos:',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ), // Reducido de 18 a 16
                 ),
                 Text(
                   '\$${totalPagos.toStringAsFixed(2)}',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18, // Reducido de 20 a 18
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6), // Reducido de 8 a 6
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Estado:',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[700],
+                  ), // Reducido de 16 a 14
                 ),
                 Text(
                   estado,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14, // Reducido de 16 a 14
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
@@ -451,18 +490,21 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
               ],
             ),
             if (diferencia != 0) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6), // Reducido de 8 a 6
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     diferencia > 0 ? 'Exceso:' : 'Faltante:',
-                    style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    ), // Reducido de 16 a 14
                   ),
                   Text(
                     '\$${diferencia.abs().toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14, // Reducido de 16 a 14
                       fontWeight: FontWeight.bold,
                       color: diferencia > 0 ? Colors.blue : Colors.red,
                     ),
@@ -477,10 +519,15 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
   }
 
   Widget _buildCambio(double cambio) {
+    final montoEfectivo = _getMontoEfectivo();
+    final totalPagos = _calcularTotalPagos();
+    final total = _calcularTotal();
+    final exceso = totalPagos - total;
+
     return Card(
       color: Colors.blue.withOpacity(0.1),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             const Row(
@@ -489,28 +536,56 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
                 SizedBox(width: 8),
                 Text(
                   'Cambio a Entregar',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Cambio:',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                 ),
                 Text(
                   '\$${cambio.toStringAsFixed(2)}',
                   style: const TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    color: Colors.red,
                   ),
                 ),
               ],
             ),
+            // Advertencia si el exceso es mayor al efectivo
+            if (exceso > montoEfectivo && montoEfectivo > 0) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning, color: Colors.red, size: 16),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Cambio limitado al efectivo recibido: \$${montoEfectivo.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -524,7 +599,7 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
         totalPagos >= total && (totalPagos == total || _getMontoEfectivo() > 0);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12), // Reducido de 16 a 12
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -536,27 +611,30 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: _isProcessing ? null : () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Regresar'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _isProcessing ? null : () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Regresar'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                  ), // Reducido de 12 a 8
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            flex: 2,
-            child: ElevatedButton.icon(
-              onPressed:
-                  _isProcessing || !puedeConfirmar ? null : _procesarVenta,
-              icon:
-                  _isProcessing
-                      ? const SizedBox(
+            const SizedBox(width: 12), // Reducido de 16 a 12
+            Expanded(
+              flex: 2,
+              child: ElevatedButton.icon(
+                onPressed: _isProcessing || !puedeConfirmar
+                    ? null
+                    : _procesarVenta,
+                icon: _isProcessing
+                    ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -566,16 +644,21 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
                           ),
                         ),
                       )
-                      : const Icon(Icons.check_circle),
-              label: Text(_isProcessing ? 'Procesando...' : 'Confirmar Venta'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: puedeConfirmar ? Colors.green : Colors.grey,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                    : const Icon(Icons.check_circle),
+                label: Text(
+                  _isProcessing ? 'Procesando...' : 'Confirmar Venta',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: puedeConfirmar ? Colors.green : Colors.grey,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                  ), // Reducido de 12 a 8
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

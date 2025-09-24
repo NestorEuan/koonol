@@ -53,16 +53,15 @@ class _VentasScreenState extends State<VentasScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (context) => CarritoScreen(
-              carrito: _carrito,
-              cliente: _clienteSeleccionado,
-              onCarritoChanged: (carritoActualizado) {
-                setState(() {
-                  _carrito = carritoActualizado;
-                });
-              },
-            ),
+        builder: (context) => CarritoScreen(
+          carrito: _carrito,
+          cliente: _clienteSeleccionado,
+          onCarritoChanged: (carritoActualizado) {
+            setState(() {
+              _carrito = carritoActualizado;
+            });
+          },
+        ),
       ),
     );
   }
@@ -91,17 +90,16 @@ class _VentasScreenState extends State<VentasScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (context) => FinalizarVentaScreen(
-              carrito: _carrito,
-              cliente: _clienteSeleccionado!,
-              onVentaFinalizada: () {
-                setState(() {
-                  _carrito.clear();
-                  _clienteSeleccionado = null;
-                });
-              },
-            ),
+        builder: (context) => FinalizarVentaScreen(
+          carrito: _carrito,
+          cliente: _clienteSeleccionado!,
+          onVentaFinalizada: () {
+            setState(() {
+              _carrito.clear();
+              _clienteSeleccionado = null;
+            });
+          },
+        ),
       ),
     );
   }
@@ -210,12 +208,11 @@ class _VentasScreenState extends State<VentasScreen> {
             const SizedBox(width: 8),
             // Botón finalizar venta
             ElevatedButton.icon(
-              onPressed:
-                  (_carrito.isEmpty || _clienteSeleccionado == null)
-                      ? null
-                      : _finalizarVenta,
+              onPressed: (_carrito.isEmpty || _clienteSeleccionado == null)
+                  ? null
+                  : _finalizarVenta,
               icon: const Icon(Icons.payment),
-              label: const Text('Finalizar Venta'),
+              label: const Text('Finalizar'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,

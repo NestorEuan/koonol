@@ -154,9 +154,8 @@ class DataProvider {
 
   static final List<Map<String, dynamic>> _tiposPagoData = [
     {'idTipoPago': 1, 'descripcion': 'Efectivo'},
-    {'idTipoPago': 2, 'descripcion': 'Cheque'},
-    {'idTipoPago': 3, 'descripcion': 'Transferencia'},
-    {'idTipoPago': 4, 'descripcion': 'Tarjeta de Crédito/Débito'},
+    {'idTipoPago': 2, 'descripcion': 'Transferencia'},
+    {'idTipoPago': 3, 'descripcion': 'Tarjeta de Crédito/Débito'},
   ];
 
   // Métodos para obtener datos

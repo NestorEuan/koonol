@@ -114,158 +114,203 @@ class _ClienteSearchWidgetState extends State<ClienteSearchWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return // En el método build(), reemplazar todo el contenido del Card por:
+    Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0), // Reducido de 16 a 12
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.person_search, color: Colors.blue, size: 24),
-                const SizedBox(width: 8),
-                const Text(
-                  'Buscar Cliente',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _searchController,
-                    focusNode: _focusNode,
-                    decoration: InputDecoration(
-                      hintText: 'ID Cliente / Nombre',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon:
-                          _searchController.text.isNotEmpty
-                              ? IconButton(
+            // Solo mostrar el header si no hay cliente seleccionado
+            if (widget.clienteSeleccionado == null) ...[
+              Row(
+                children: [
+                  const Icon(Icons.person_search, color: Colors.blue, size: 24),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Buscar Cliente',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8), // Reducido de 12 a 8
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _searchController,
+                      focusNode: _focusNode,
+                      decoration: InputDecoration(
+                        hintText: 'ID Cliente / Nombre',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
                                 icon: const Icon(Icons.clear),
                                 onPressed: _clearSelection,
                               )
-                              : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ), // Reducido padding
                       ),
+                      onChanged: _onSearchChanged,
+                      onTap: () {
+                        if (_searchController.text.isNotEmpty) {
+                          setState(() {
+                            _showSuggestions = true;
+                          });
+                        }
+                      },
                     ),
-                    onChanged: _onSearchChanged,
-                    onTap: () {
-                      if (_searchController.text.isNotEmpty) {
-                        setState(() {
-                          _showSuggestions = true;
-                        });
-                      }
-                    },
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.qr_code_scanner,
-                      color: Colors.white,
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    onPressed: _scanQRCode,
-                    tooltip: 'Escanear QR',
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.qr_code_scanner,
+                        color: Colors.white,
+                      ),
+                      onPressed: _scanQRCode,
+                      tooltip: 'Escanear QR',
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
+
             // Cliente seleccionado
             if (widget.clienteSeleccionado != null) ...[
-              const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10), // Reducido de 12 a 10
                 decoration: BoxDecoration(
                   color: Colors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.blue.withOpacity(0.3)),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'ID: ${widget.clienteSeleccionado!.idCliente}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getTipoColor(
-                              widget.clienteSeleccionado!.tipo,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            widget.clienteSeleccionado!.tipo,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.clienteSeleccionado!.nombre,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (widget.clienteSeleccionado!.telefono.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Row(
+                    const Icon(Icons.person, color: Colors.blue, size: 24),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.phone, size: 16, color: Colors.grey),
-                          const SizedBox(width: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, // Reducido de 8 a 6
+                                  vertical: 3, // Reducido de 4 a 3
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'ID: ${widget.clienteSeleccionado!.idCliente}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, // Reducido de 8 a 6
+                                  vertical: 3, // Reducido de 4 a 3
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getTipoColor(
+                                    widget.clienteSeleccionado!.tipo,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  widget.clienteSeleccionado!.tipo,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6), // Reducido de 8 a 6
                           Text(
-                            widget.clienteSeleccionado!.telefono,
+                            widget.clienteSeleccionado!.nombre,
                             style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
+                          if (widget
+                              .clienteSeleccionado!
+                              .telefono
+                              .isNotEmpty) ...[
+                            const SizedBox(height: 3), // Reducido de 4 a 3
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.phone,
+                                  size: 16,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.clienteSeleccionado!.telefono,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
-                    ],
+                    ),
+                    // Icono de borrado
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        onPressed: _clearSelection,
+                        tooltip: 'Limpiar selección',
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
-            // Lista de sugerencias
-            if (_showSuggestions && _clientesEncontrados.isNotEmpty) ...[
-              const SizedBox(height: 8),
+
+            // Lista de sugerencias (solo si no hay cliente seleccionado)
+            if (_showSuggestions &&
+                widget.clienteSeleccionado == null &&
+                _clientesEncontrados.isNotEmpty) ...[
+              const SizedBox(height: 6), // Reducido de 8 a 6
               Container(
                 constraints: const BoxConstraints(maxHeight: 200),
                 decoration: BoxDecoration(
@@ -278,29 +323,43 @@ class _ClienteSearchWidgetState extends State<ClienteSearchWidget> {
                   itemBuilder: (context, index) {
                     final cliente = _clientesEncontrados[index];
                     return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ), // Reducido padding
                       leading: CircleAvatar(
                         backgroundColor: _getTipoColor(cliente.tipo),
+                        radius: 18, // Reducido de 20 a 18
                         child: Text(
                           cliente.idCliente.toString(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
+                            fontSize: 12, // Reducido tamaño
                           ),
                         ),
                       ),
-                      title: Text(cliente.nombre),
-                      subtitle: Text(cliente.tipo),
+                      title: Text(
+                        cliente.nombre,
+                        style: const TextStyle(fontSize: 14), // Reducido tamaño
+                      ),
+                      subtitle: Text(
+                        cliente.tipo,
+                        style: const TextStyle(fontSize: 12), // Reducido tamaño
+                      ),
                       onTap: () => _selectCliente(cliente),
                     );
                   },
                 ),
               ),
             ],
-            if (_showSuggestions && _clientesEncontrados.isEmpty) ...[
-              const SizedBox(height: 8),
+            if (_showSuggestions &&
+                widget.clienteSeleccionado == null &&
+                _clientesEncontrados.isEmpty) ...[
+              const SizedBox(height: 6), // Reducido de 8 a 6
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12), // Reducido de 16 a 12
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.withOpacity(0.3)),
                   borderRadius: BorderRadius.circular(8),
