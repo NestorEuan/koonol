@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 import 'screens/ventas_screen.dart';
+import 'data/data_init.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar la base de datos antes de ejecutar la app
+  try {
+    await DataInit.initDb();
+  } catch (e) {
+    print('Error crítico al inicializar la base de datos: $e');
+    // Aquí podrías mostrar un dialog de error o manejar el fallo
+  }
+
   runApp(const VentasApp());
 }
 

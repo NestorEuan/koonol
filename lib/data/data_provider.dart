@@ -1,7 +1,6 @@
 import 'package:koonol/models/articulo.dart';
 import 'package:koonol/models/cliente.dart';
 import 'package:koonol/models/clasificacion.dart';
-import 'package:koonol/models/tipo_pago.dart';
 
 class DataProvider {
   static final List<Map<String, dynamic>> _clasificacionesData = [
@@ -171,10 +170,6 @@ class DataProvider {
 
   static List<Cliente> getClientes() {
     return _clientesData.map((json) => Cliente.fromJson(json)).toList();
-  }
-
-  static List<TipoPago> getTiposPago() {
-    return _tiposPagoData.map((json) => TipoPago.fromJson(json)).toList();
   }
 
   // Métodos de búsqueda
