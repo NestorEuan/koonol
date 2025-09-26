@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'screens/ventas_screen.dart';
 import 'data/data_init.dart';
@@ -5,13 +6,23 @@ import 'data/data_init.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inicialización normal
   // Inicializar la base de datos antes de ejecutar la app
   try {
     await DataInit.initDb();
   } catch (e) {
-    print('Error crítico al inicializar la base de datos: $e');
+    if (kDebugMode) {
+      print('Error crítico al inicializar la base de datos: $e');
+    }
     // Aquí podrías mostrar un dialog de error o manejar el fallo
   }
+
+  // O para recrear completamente la base de datos:
+  // await DataInit.recreateDb();
+
+  // O para verificar el estado:
+  // final status = await DataInit.checkDatabaseStatus();
+  // print('Estado de la DB: $status');
 
   runApp(const VentasApp());
 }

@@ -1,8 +1,8 @@
-import 'articulo.dart';
+import 'articulo_mdl.dart';
 
 class CarritoItem {
-  final Articulo articulo;
-  int cantidad;
+  final ArticuloMdl articulo;
+  double cantidad;
   double precioVenta;
 
   CarritoItem({
@@ -14,8 +14,8 @@ class CarritoItem {
   double get subtotal => cantidad * precioVenta;
 
   CarritoItem copyWith({
-    Articulo? articulo,
-    int? cantidad,
+    ArticuloMdl? articulo,
+    double? cantidad,
     double? precioVenta,
   }) {
     return CarritoItem(

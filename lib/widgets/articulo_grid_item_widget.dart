@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/articulo.dart';
+import 'package:koonol/data/config.dart';
+import '../models/articulo_mdl.dart';
 
 class ArticuloGridItemWidget extends StatefulWidget {
-  final Articulo articulo;
-  final Function(Articulo articulo, int cantidad, double precio) onAddToCart;
-  final int cantidadEnCarrito;
+  final ArticuloMdl articulo;
+  final Function(ArticuloMdl articulo, double cantidad, double precio)
+  onAddToCart;
+  final double cantidadEnCarrito;
 
   const ArticuloGridItemWidget({
     super.key,
@@ -21,13 +23,13 @@ class ArticuloGridItemWidget extends StatefulWidget {
 class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
   late TextEditingController _precioController;
   late TextEditingController _cantidadController;
-  int _cantidad = 1;
+  double _cantidad = 1;
   late double _precio;
 
   @override
   void initState() {
     super.initState();
-    _precio = widget.articulo.precio;
+    _precio = widget.articulo.nPrecio;
     _precioController = TextEditingController(text: _precio.toStringAsFixed(2));
     _cantidadController = TextEditingController(text: _cantidad.toString());
   }
@@ -40,39 +42,55 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
   }
 
   void _incrementarCantidad() {
-    if (_cantidad < widget.articulo.existencia) {
-      setState(() {
-        _cantidad++;
-        _cantidadController.text = _cantidad.toString();
-      });
-    } else {
+    // Convertir a entero para incrementar
+    int cantidadEntera = _cantidad.toInt();
+
+    if (AppConfig.validarExistencia &&
+        cantidadEntera >= widget.articulo.existencia.toInt()) {
       _mostrarMensaje('No hay suficiente existencia');
+      return;
     }
+
+    cantidadEntera++;
+
+    setState(() {
+      _cantidad = cantidadEntera.toDouble();
+      _cantidadController.text = _cantidad.toString();
+    });
   }
 
   void _decrementarCantidad() {
-    if (_cantidad > 1) {
+    // Convertir a entero para decrementar
+    int cantidadEntera = _cantidad.toInt();
+
+    if (cantidadEntera > 1) {
+      cantidadEntera--;
       setState(() {
-        _cantidad--;
+        _cantidad = cantidadEntera.toDouble();
         _cantidadController.text = _cantidad.toString();
       });
     }
   }
 
   void _onCantidadChanged(String value) {
-    final int? nuevaCantidad = int.tryParse(value);
+    final double? nuevaCantidad = double.tryParse(value);
     if (nuevaCantidad != null && nuevaCantidad > 0) {
-      if (nuevaCantidad <= widget.articulo.existencia) {
-        setState(() {
-          _cantidad = nuevaCantidad;
-        });
-      } else {
-        _cantidadController.text = widget.articulo.existencia.toString();
-        setState(() {
-          _cantidad = widget.articulo.existencia;
-        });
-        _mostrarMensaje('Cantidad ajustada a existencia disponible');
+      // Solo validar existencia si la configuración está habilitada
+      if (AppConfig.validarExistencia) {
+        if (nuevaCantidad > widget.articulo.existencia) {
+          _cantidadController.text = widget.articulo.existencia.toString();
+          setState(() {
+            _cantidad = widget.articulo.existencia;
+          });
+          _mostrarMensaje('Cantidad ajustada a existencia disponible');
+          return; // Importante: salir aquí para evitar que se ejecute el setState de abajo
+        }
       }
+
+      // Si no hay validación de existencia O si la cantidad es válida, actualizar
+      setState(() {
+        _cantidad = nuevaCantidad;
+      });
     }
   }
 
@@ -104,9 +122,12 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final bool sinExistencia = widget.articulo.existencia == 0;
+    final bool sinExistencia =
+        AppConfig.validarExistencia && widget.articulo.existencia == 0;
     final bool existenciaBaja =
-        widget.articulo.existencia <= 5 && widget.articulo.existencia > 0;
+        AppConfig.validarExistencia &&
+        widget.articulo.existencia <= 5 &&
+        widget.articulo.existencia > 0;
 
     return Card(
       margin: const EdgeInsets.all(4),
@@ -138,7 +159,7 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
                         children: [
                           Expanded(
                             child: Text(
-                              widget.articulo.descripcion,
+                              widget.articulo.cDescripcion,
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
@@ -170,7 +191,7 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Código: ${widget.articulo.codigo}',
+                        'Código: ${widget.articulo.cCodigo}',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 4),
@@ -180,12 +201,11 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
                             'Existencia: ${widget.articulo.existencia}',
                             style: TextStyle(
                               fontSize: 12,
-                              color:
-                                  sinExistencia
-                                      ? Colors.red
-                                      : existenciaBaja
-                                      ? Colors.orange
-                                      : Colors.green,
+                              color: sinExistencia
+                                  ? Colors.red
+                                  : existenciaBaja
+                                  ? Colors.orange
+                                  : Colors.green,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -278,19 +298,17 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: InkWell(
-                                  onTap:
-                                      sinExistencia
-                                          ? null
-                                          : _decrementarCantidad,
+                                  onTap: sinExistencia
+                                      ? null
+                                      : _decrementarCantidad,
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
                                     child: Icon(
                                       Icons.remove,
                                       size: 14,
-                                      color:
-                                          sinExistencia
-                                              ? Colors.grey
-                                              : Colors.black,
+                                      color: sinExistencia
+                                          ? Colors.grey
+                                          : Colors.black,
                                     ),
                                   ),
                                 ),
@@ -324,19 +342,17 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: InkWell(
-                                  onTap:
-                                      sinExistencia
-                                          ? null
-                                          : _incrementarCantidad,
+                                  onTap: sinExistencia
+                                      ? null
+                                      : _incrementarCantidad,
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
                                     child: Icon(
                                       Icons.add,
                                       size: 14,
-                                      color:
-                                          sinExistencia
-                                              ? Colors.grey
-                                              : Colors.black,
+                                      color: sinExistencia
+                                          ? Colors.grey
+                                          : Colors.black,
                                     ),
                                   ),
                                 ),
@@ -360,8 +376,9 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
                       style: TextStyle(fontSize: 12),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          sinExistencia ? Colors.grey : Colors.blue,
+                      backgroundColor: sinExistencia
+                          ? Colors.grey
+                          : Colors.blue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),

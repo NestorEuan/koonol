@@ -89,7 +89,7 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     return widget.carrito.fold(0.0, (total, item) => total + item.subtotal);
   }
 
-  int _calcularTotalArticulos() {
+  double _calcularTotalArticulos() {
     return widget.carrito.fold(0, (total, item) => total + item.cantidad);
   }
 

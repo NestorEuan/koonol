@@ -1,8 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../models/articulo.dart';
+import 'package:koonol/data/config.dart';
+import '../models/articulo_mdl.dart';
 import '../models/carrito_item.dart';
-import '../data/data_provider.dart';
+import '../data/articulo.dart';
 import '../widgets/articulo_item_widget.dart';
 import '../widgets/articulo_grid_item_widget.dart';
 
@@ -21,7 +22,7 @@ class ArticulosWidget extends StatefulWidget {
 }
 
 class _ArticulosWidgetState extends State<ArticulosWidget> {
-  List<Articulo> _articulos = [];
+  List<ArticuloMdl> _articulos = [];
   late List<CarritoItem> _carritoLocal;
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
@@ -39,33 +40,93 @@ class _ArticulosWidgetState extends State<ArticulosWidget> {
     super.dispose();
   }
 
-  void _cargarArticulos() {
+  void _cargarArticulos() async {
     setState(() {
       _isLoading = true;
     });
 
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      final articuloRepo = await Articulo.getInstance();
+      final articulosData = await articuloRepo.getArticulos();
+
       setState(() {
-        _articulos = DataProvider.getArticulos();
+        // Convertir Map a ArticuloMdl usando el constructor correcto
+        _articulos = articulosData
+            .map(
+              (data) => ArticuloMdl(
+                idArticulo: data['id'],
+                idClasificacion: 1, // Valor por defecto, ajusta según tu lógica
+                cCodigo: data['codigo'],
+                cDescripcion: data['descripcion'],
+                nPrecio: data['precio'].toDouble(),
+                nCosto: 0.0,
+                existencia: 0.0, // Valor por defecto si no está en el query
+              ),
+            )
+            .toList();
         _isLoading = false;
       });
-    });
-  }
-
-  void _onSearchArticulo(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _articulos = DataProvider.getArticulos();
-      } else {
-        _articulos = DataProvider.buscarArticulos(query);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Mostrar error si es necesario
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar artículos: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    });
+    }
   }
 
-  void _agregarAlCarrito(Articulo articulo, int cantidad, double precio) {
+  void _onSearchArticulo(String query) async {
+    if (query.isEmpty) {
+      _cargarArticulos();
+      return;
+    }
+
+    try {
+      final articuloRepo = await Articulo.getInstance();
+      final articulosData = await articuloRepo.buscarArticulos(query);
+
+      setState(() {
+        // Convertir Map a ArticuloMdl usando el constructor correcto
+        _articulos = articulosData
+            .map(
+              (data) => ArticuloMdl(
+                idArticulo: data['id'],
+                idClasificacion: 1, // Valor por defecto, ajusta según tu lógica
+                cCodigo: data['codigo'],
+                cDescripcion: data['descripcion'],
+                nPrecio: data['precio'].toDouble(),
+                nCosto: 0.0,
+                existencia: AppConfig.validarExistencia
+                    ? data['existencia'].toDouble()
+                    : 999.0,
+              ),
+            )
+            .toList();
+      });
+    } catch (e) {
+      // Manejar error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error en la búsqueda: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _agregarAlCarrito(ArticuloMdl articulo, double cantidad, double precio) {
     setState(() {
       final int index = _carritoLocal.indexWhere(
-        (item) => item.articulo.id == articulo.id,
+        (item) => item.articulo.idArticulo == articulo.idArticulo,
       );
 
       if (index >= 0) {
@@ -89,15 +150,18 @@ class _ArticulosWidgetState extends State<ArticulosWidget> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${articulo.descripcion} agregado al carrito'),
+        content: Text('${articulo.cDescripcion} agregado al carrito'),
         duration: const Duration(seconds: 2),
         backgroundColor: Colors.green,
       ),
     );
   }
 
-  int _getCantidadEnCarrito(int articuloId) {
-    final item = _carritoLocal.where((item) => item.articulo.id == articuloId);
+  double _getCantidadEnCarrito(int? articuloId) {
+    if (articuloId == null) return 0;
+    final item = _carritoLocal.where(
+      (item) => item.articulo.idArticulo == articuloId,
+    );
     return item.isEmpty ? 0 : item.first.cantidad;
   }
 
@@ -192,7 +256,7 @@ class _ArticulosWidgetState extends State<ArticulosWidget> {
           return ArticuloGridItemWidget(
             articulo: articulo,
             onAddToCart: _agregarAlCarrito,
-            cantidadEnCarrito: _getCantidadEnCarrito(articulo.id),
+            cantidadEnCarrito: _getCantidadEnCarrito(articulo.idArticulo),
           );
         },
       );
@@ -205,7 +269,7 @@ class _ArticulosWidgetState extends State<ArticulosWidget> {
           return ArticuloItemWidget(
             articulo: articulo,
             onAddToCart: _agregarAlCarrito,
-            cantidadEnCarrito: _getCantidadEnCarrito(articulo.id),
+            cantidadEnCarrito: _getCantidadEnCarrito(articulo.idArticulo),
           );
         },
       );
@@ -241,7 +305,6 @@ class _ArticulosWidgetState extends State<ArticulosWidget> {
           ),
         ),
 
-        // Grid de artículos
         // Lista/Grid de artículos - Ahora responsivo
         Expanded(child: _buildArticulosList()),
       ],

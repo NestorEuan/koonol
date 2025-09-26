@@ -26,16 +26,15 @@ class _ArticuloListadoReducidoWidgetState
   @override
   void initState() {
     super.initState();
-    _itemsLocal =
-        widget.items
-            .map(
-              (item) => CarritoItem(
-                articulo: item.articulo,
-                cantidad: item.cantidad,
-                precioVenta: item.precioVenta,
-              ),
-            )
-            .toList();
+    _itemsLocal = widget.items
+        .map(
+          (item) => CarritoItem(
+            articulo: item.articulo,
+            cantidad: item.cantidad,
+            precioVenta: item.precioVenta,
+          ),
+        )
+        .toList();
   }
 
   void _actualizarItems() {
@@ -44,7 +43,7 @@ class _ArticuloListadoReducidoWidgetState
     }
   }
 
-  void _cambiarCantidad(int index, int nuevaCantidad) {
+  void _cambiarCantidad(int index, double nuevaCantidad) {
     if (nuevaCantidad > 0 &&
         nuevaCantidad <= _itemsLocal[index].articulo.existencia) {
       setState(() {
@@ -78,7 +77,7 @@ class _ArticuloListadoReducidoWidgetState
     return _itemsLocal.fold(0.0, (total, item) => total + item.subtotal);
   }
 
-  int _calcularTotalArticulos() {
+  double _calcularTotalArticulos() {
     return _itemsLocal.fold(0, (total, item) => total + item.cantidad);
   }
 
@@ -160,14 +159,14 @@ class _ArticuloListadoReducidoWidgetState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.articulo.descripcion,
+                    item.articulo.cDescripcion,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
                   ),
                   Text(
-                    'Código: ${item.articulo.codigo}',
+                    'Código: ${item.articulo.cCodigo}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
@@ -192,7 +191,7 @@ class _ArticuloListadoReducidoWidgetState
                   ),
                 ),
                 onChanged: (value) {
-                  final cantidad = int.tryParse(value);
+                  final cantidad = double.tryParse(value);
                   if (cantidad != null) {
                     _cambiarCantidad(index, cantidad);
                   }
@@ -273,14 +272,14 @@ class _ArticuloListadoReducidoWidgetState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.articulo.descripcion,
+                    item.articulo.cDescripcion,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
                   ),
                   Text(
-                    'Código: ${item.articulo.codigo}',
+                    'Código: ${item.articulo.cCodigo}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
