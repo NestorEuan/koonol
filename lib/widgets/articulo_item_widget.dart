@@ -186,7 +186,9 @@ class _ArticuloItemWidgetState extends State<ArticuloItemWidget> {
                   Expanded(
                     child: TextFormField(
                       controller: _controller.cantidadController,
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       textAlign: TextAlign.center,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(borderSide: BorderSide.none),
@@ -196,7 +198,11 @@ class _ArticuloItemWidgetState extends State<ArticuloItemWidget> {
                           vertical: 8,
                         ),
                       ),
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+\.?\d{0,2}'),
+                        ),
+                      ],
                       onChanged: _controller.onCantidadChanged,
                       enabled: !_controller.hasNoStock(),
                     ),

@@ -34,7 +34,9 @@ class ArticuloController {
   void _initializeControllers() {
     _precio = articulo.nPrecio;
     _precioController = TextEditingController(text: _precio.toStringAsFixed(2));
-    _cantidadController = TextEditingController(text: _cantidad.toString());
+    _cantidadController = TextEditingController(
+      text: _cantidad.toStringAsFixed(2),
+    );
   }
 
   /// Libera los recursos de los controladores
@@ -46,24 +48,26 @@ class ArticuloController {
   /// Incrementa la cantidad en 1 unidad
   void incrementarCantidad() {
     int cantidadEntera = _cantidad.toInt();
+    double cantidadDecimal = _cantidad - cantidadEntera;
 
     if (_shouldValidateStock() &&
-        cantidadEntera >= articulo.existencia.toInt()) {
+        (cantidadEntera + cantidadDecimal) >= articulo.existencia.toInt()) {
       _showMessage('No hay suficiente existencia');
       return;
     }
 
     cantidadEntera++;
-    _updateCantidad(cantidadEntera.toDouble());
+    _updateCantidad(cantidadEntera.toDouble() + cantidadDecimal);
   }
 
   /// Decrementa la cantidad en 1 unidad (mínimo 1)
   void decrementarCantidad() {
     int cantidadEntera = _cantidad.toInt();
+    double cantidadDecimal = _cantidad - cantidadEntera;
 
     if (cantidadEntera > 1) {
       cantidadEntera--;
-      _updateCantidad(cantidadEntera.toDouble());
+      _updateCantidad(cantidadEntera.toDouble() + cantidadDecimal);
     }
   }
 
@@ -80,7 +84,9 @@ class ArticuloController {
       return;
     }
 
-    _updateCantidad(nuevaCantidad);
+    _cantidad = nuevaCantidad;
+    onStateChanged?.call();
+    //    _updateCantidad(nuevaCantidad);
   }
 
   /// Actualiza el precio desde input de texto
