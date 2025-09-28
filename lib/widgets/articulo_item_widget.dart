@@ -166,7 +166,7 @@ class _ArticuloItemWidgetState extends State<ArticuloItemWidget> {
         const SizedBox(width: 16),
         // Cantidad
         Expanded(
-          flex: 2,
+          flex: 3,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

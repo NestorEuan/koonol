@@ -145,6 +145,7 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
           children: [
             // Precio
             Expanded(
+              flex: 5,
               child: UIService.createStyledTextField(
                 controller: _controller.precioController,
                 label: 'Precio',
@@ -167,6 +168,7 @@ class _ArticuloGridItemWidgetState extends State<ArticuloGridItemWidget> {
             const SizedBox(width: 8),
             // Cantidad
             Expanded(
+              flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

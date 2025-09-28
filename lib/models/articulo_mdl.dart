@@ -59,7 +59,7 @@ class ArticuloMdl {
       cDescripcion: cDescripcion ?? this.cDescripcion,
       nPrecio: nPrecio ?? this.nPrecio,
       nCosto: nCosto ?? this.nCosto,
-      existencia: existencia ?? this.existencia,
+      existencia: existencia,
     );
   }
 
