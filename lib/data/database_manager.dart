@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 class DatabaseManager {
   static const String _dbName = 'koonol.db';
-  static const int _dbVersion = 2; // Incrementado para agregar nuevas tablas
+  static const int _dbVersion = 3; // Incrementado para agregar nuevas tablas
   static Database? _database;
   static bool _isInitialized = false;
 
@@ -87,6 +87,113 @@ class DatabaseManager {
       )
     ''');
 
+    // Tabla cortecaja
+    await db.execute('''
+      CREATE TABLE cortecaja (
+        idCorteCaja INTEGER PRIMARY KEY AUTOINCREMENT,
+        idSucursal INTEGER NOT NULL DEFAULT 1,
+        idUsuario INTEGER NOT NULL DEFAULT 1,
+        dtAlta TEXT NOT NULL,
+        dtFecha TEXT NOT NULL,
+        cEstado TEXT NOT NULL DEFAULT 'ABIERTO',
+        nImporte REAL NOT NULL DEFAULT 0.0,
+        CONSTRAINT chk_estado CHECK (cEstado IN ('ABIERTO', 'CERRADO'))
+      )
+    ''');
+
+    // Tabla venta
+    await db.execute('''
+      CREATE TABLE venta (
+        idVenta INTEGER PRIMARY KEY AUTOINCREMENT,
+        idCliente INTEGER NOT NULL,
+        nImporte REAL NOT NULL DEFAULT 0.0,
+        nIVA REAL NOT NULL DEFAULT 0.0,
+        nDescuento REAL NOT NULL DEFAULT 0.0,
+        nTotalPagado REAL NOT NULL DEFAULT 0.0,
+        nCambio REAL NOT NULL DEFAULT 0.0,
+        dtAlta TEXT NOT NULL,
+        dtFecha TEXT NOT NULL,
+        CONSTRAINT chk_importe CHECK (nImporte >= 0),
+        CONSTRAINT chk_iva CHECK (nIVA >= 0),
+        CONSTRAINT chk_descuento CHECK (nDescuento >= 0)
+      )
+    ''');
+
+    // Tabla ventadetalle
+    await db.execute('''
+      CREATE TABLE ventadetalle (
+        idVenta INTEGER NOT NULL,
+        idArticulo INTEGER NOT NULL,
+        idPrecio INTEGER NOT NULL DEFAULT 1,
+        nCantidad REAL NOT NULL DEFAULT 1.0,
+        nPrecio REAL NOT NULL DEFAULT 0.0,
+        nCosto REAL NOT NULL DEFAULT 0.0,
+        dtAlta TEXT NOT NULL,
+        PRIMARY KEY (idVenta, idArticulo),
+        FOREIGN KEY (idVenta) REFERENCES venta(idVenta) ON DELETE CASCADE,
+        FOREIGN KEY (idArticulo) REFERENCES articulo(idArticulo),
+        CONSTRAINT chk_cantidad CHECK (nCantidad > 0),
+        CONSTRAINT chk_precio_det CHECK (nPrecio >= 0),
+        CONSTRAINT chk_costo_det CHECK (nCosto >= 0)
+      )
+    ''');
+
+    // Tabla ventatipopago
+    await db.execute('''
+      CREATE TABLE ventatipopago (
+        idVenta INTEGER NOT NULL,
+        idTipoPago INTEGER NOT NULL,
+        nImporte REAL NOT NULL DEFAULT 0.0,
+        dtAlta TEXT NOT NULL,
+        PRIMARY KEY (idVenta, idTipoPago),
+        FOREIGN KEY (idVenta) REFERENCES venta(idVenta) ON DELETE CASCADE,
+        FOREIGN KEY (idTipoPago) REFERENCES tipodepago(idTipoPago),
+        CONSTRAINT chk_importe_pago CHECK (nImporte >= 0)
+      )
+    ''');
+
+    // Tabla cortecajaventa
+    await db.execute('''
+      CREATE TABLE cortecajaventa (
+        idCorteCaja INTEGER NOT NULL,
+        idVenta INTEGER NOT NULL,
+        nImporte REAL NOT NULL DEFAULT 0.0,
+        nIVA REAL NOT NULL DEFAULT 0.0,
+        nDescuento REAL NOT NULL DEFAULT 0.0,
+        dtAlta TEXT NOT NULL,
+        PRIMARY KEY (idCorteCaja, idVenta),
+        FOREIGN KEY (idCorteCaja) REFERENCES cortecaja(idCorteCaja),
+        FOREIGN KEY (idVenta) REFERENCES venta(idVenta) ON DELETE CASCADE
+      )
+    ''');
+
+    // Tabla acumcortetipopago
+    await db.execute('''
+      CREATE TABLE acumcortetipopago (
+        idCorteCaja INTEGER NOT NULL,
+        idTipoPago INTEGER NOT NULL,
+        nImporte REAL NOT NULL DEFAULT 0.0,
+        dtAlta TEXT NOT NULL,
+        PRIMARY KEY (idCorteCaja, idTipoPago),
+        FOREIGN KEY (idCorteCaja) REFERENCES cortecaja(idCorteCaja),
+        FOREIGN KEY (idTipoPago) REFERENCES tipodepago(idTipoPago)
+      )
+    ''');
+
+    // Tabla acumcortedetalle
+    await db.execute('''
+      CREATE TABLE acumcortedetalle (
+        idCorte INTEGER NOT NULL,
+        idArticulo INTEGER NOT NULL,
+        dtAlta TEXT NOT NULL,
+        nImporte REAL NOT NULL DEFAULT 0.0,
+        nCosto REAL NOT NULL DEFAULT 0.0,
+        PRIMARY KEY (idCorte, idArticulo),
+        FOREIGN KEY (idCorte) REFERENCES cortecaja(idCorteCaja),
+        FOREIGN KEY (idArticulo) REFERENCES articulo(idArticulo)
+      )
+    ''');
+
     // Insertar datos iniciales
     await _insertInitialData(db);
 
@@ -132,19 +239,13 @@ class DatabaseManager {
     }
 
     if (oldVersion < 2) {
-      // Agregar tablas de artículos y fotoarticulo
+      // Crear tablas de artículos y fotoarticulo si no existen
       try {
-        // Verificar si las tablas ya existen
         final tablesResult = await db.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('articulo', 'fotoarticulo')",
         );
 
         if (tablesResult.isEmpty) {
-          if (kDebugMode) {
-            print('Creando nuevas tablas: articulo y fotoarticulo');
-          }
-
-          // Crear tabla articulo
           await db.execute('''
             CREATE TABLE articulo (
               idArticulo INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,7 +259,6 @@ class DatabaseManager {
             )
           ''');
 
-          // Crear tabla fotoarticulo
           await db.execute('''
             CREATE TABLE fotoarticulo (
               idArticulo INTEGER NOT NULL,
@@ -170,25 +270,153 @@ class DatabaseManager {
             )
           ''');
 
-          // Insertar datos iniciales de artículos
           await db.execute('''
             INSERT INTO articulo (idClasificacion, cCodigo, cDescripcion, nPrecio, nCosto) VALUES 
             (1, 'ca', 'Caja de huevo', 380.0, 350.0),
             (1, 'cr', 'Cartón de huevo', 120.0, 80.0),
             (1, 'kl', 'Kilo de huevo', 80.0, 70.0)
           ''');
-
-          if (kDebugMode) {
-            print('Tablas creadas y datos iniciales insertados');
-          }
-        } else {
-          if (kDebugMode) {
-            print('Las tablas articulo y/o fotoarticulo ya existen');
-          }
         }
       } catch (e) {
         if (kDebugMode) {
-          print('Error durante la actualización: $e');
+          print('Error durante la actualización v2: $e');
+        }
+        rethrow;
+      }
+    }
+
+    if (oldVersion < 3) {
+      // Crear tablas de ventas y cortes
+      try {
+        // Verificar qué tablas ya existen
+        final tablesResult = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('cortecaja', 'venta', 'ventadetalle', 'ventatipopago', 'cortecajaventa', 'acumcortetipopago', 'acumcortedetalle')",
+        );
+
+        final existingTables = tablesResult
+            .map((row) => row['name'] as String)
+            .toSet();
+
+        if (!existingTables.contains('cortecaja')) {
+          await db.execute('''
+            CREATE TABLE cortecaja (
+              idCorteCaja INTEGER PRIMARY KEY AUTOINCREMENT,
+              idSucursal INTEGER NOT NULL DEFAULT 1,
+              idUsuario INTEGER NOT NULL DEFAULT 1,
+              dtAlta TEXT NOT NULL,
+              dtFecha TEXT NOT NULL,
+              cEstado TEXT NOT NULL DEFAULT 'ABIERTO',
+              nImporte REAL NOT NULL DEFAULT 0.0,
+              CONSTRAINT chk_estado CHECK (cEstado IN ('ABIERTO', 'CERRADO'))
+            )
+          ''');
+        }
+
+        if (!existingTables.contains('venta')) {
+          await db.execute('''
+            CREATE TABLE venta (
+              idVenta INTEGER PRIMARY KEY AUTOINCREMENT,
+              idCliente INTEGER NOT NULL,
+              nImporte REAL NOT NULL DEFAULT 0.0,
+              nIVA REAL NOT NULL DEFAULT 0.0,
+              nDescuento REAL NOT NULL DEFAULT 0.0,
+              nTotalPagado REAL NOT NULL DEFAULT 0.0,
+              nCambio REAL NOT NULL DEFAULT 0.0,
+              dtAlta TEXT NOT NULL,
+              dtFecha TEXT NOT NULL,
+              CONSTRAINT chk_importe CHECK (nImporte >= 0),
+              CONSTRAINT chk_iva CHECK (nIVA >= 0),
+              CONSTRAINT chk_descuento CHECK (nDescuento >= 0)
+            )
+          ''');
+        }
+
+        if (!existingTables.contains('ventadetalle')) {
+          await db.execute('''
+            CREATE TABLE ventadetalle (
+              idVenta INTEGER NOT NULL,
+              idArticulo INTEGER NOT NULL,
+              idPrecio INTEGER NOT NULL DEFAULT 1,
+              nCantidad REAL NOT NULL DEFAULT 1.0,
+              nPrecio REAL NOT NULL DEFAULT 0.0,
+              nCosto REAL NOT NULL DEFAULT 0.0,
+              dtAlta TEXT NOT NULL,
+              PRIMARY KEY (idVenta, idArticulo),
+              FOREIGN KEY (idVenta) REFERENCES venta(idVenta) ON DELETE CASCADE,
+              FOREIGN KEY (idArticulo) REFERENCES articulo(idArticulo),
+              CONSTRAINT chk_cantidad CHECK (nCantidad > 0),
+              CONSTRAINT chk_precio_det CHECK (nPrecio >= 0),
+              CONSTRAINT chk_costo_det CHECK (nCosto >= 0)
+            )
+          ''');
+        }
+
+        if (!existingTables.contains('ventatipopago')) {
+          await db.execute('''
+            CREATE TABLE ventatipopago (
+              idVenta INTEGER NOT NULL,
+              idTipoPago INTEGER NOT NULL,
+              nImporte REAL NOT NULL DEFAULT 0.0,
+              dtAlta TEXT NOT NULL,
+              PRIMARY KEY (idVenta, idTipoPago),
+              FOREIGN KEY (idVenta) REFERENCES venta(idVenta) ON DELETE CASCADE,
+              FOREIGN KEY (idTipoPago) REFERENCES tipodepago(idTipoPago),
+              CONSTRAINT chk_importe_pago CHECK (nImporte >= 0)
+            )
+          ''');
+        }
+
+        if (!existingTables.contains('cortecajaventa')) {
+          await db.execute('''
+            CREATE TABLE cortecajaventa (
+              idCorteCaja INTEGER NOT NULL,
+              idVenta INTEGER NOT NULL,
+              nImporte REAL NOT NULL DEFAULT 0.0,
+              nIVA REAL NOT NULL DEFAULT 0.0,
+              nDescuento REAL NOT NULL DEFAULT 0.0,
+              dtAlta TEXT NOT NULL,
+              PRIMARY KEY (idCorteCaja, idVenta),
+              FOREIGN KEY (idCorteCaja) REFERENCES cortecaja(idCorteCaja),
+              FOREIGN KEY (idVenta) REFERENCES venta(idVenta) ON DELETE CASCADE
+            )
+          ''');
+        }
+
+        if (!existingTables.contains('acumcortetipopago')) {
+          await db.execute('''
+            CREATE TABLE acumcortetipopago (
+              idCorteCaja INTEGER NOT NULL,
+              idTipoPago INTEGER NOT NULL,
+              nImporte REAL NOT NULL DEFAULT 0.0,
+              dtAlta TEXT NOT NULL,
+              PRIMARY KEY (idCorteCaja, idTipoPago),
+              FOREIGN KEY (idCorteCaja) REFERENCES cortecaja(idCorteCaja),
+              FOREIGN KEY (idTipoPago) REFERENCES tipodepago(idTipoPago)
+            )
+          ''');
+        }
+
+        if (!existingTables.contains('acumcortedetalle')) {
+          await db.execute('''
+            CREATE TABLE acumcortedetalle (
+              idCorte INTEGER NOT NULL,
+              idArticulo INTEGER NOT NULL,
+              dtAlta TEXT NOT NULL,
+              nImporte REAL NOT NULL DEFAULT 0.0,
+              nCosto REAL NOT NULL DEFAULT 0.0,
+              PRIMARY KEY (idCorte, idArticulo),
+              FOREIGN KEY (idCorte) REFERENCES cortecaja(idCorteCaja),
+              FOREIGN KEY (idArticulo) REFERENCES articulo(idArticulo)
+            )
+          ''');
+        }
+
+        if (kDebugMode) {
+          print('Tablas de ventas y cortes creadas exitosamente');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error durante la actualización v3: $e');
         }
         rethrow;
       }

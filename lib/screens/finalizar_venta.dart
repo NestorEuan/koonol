@@ -4,6 +4,8 @@ import '../models/carrito_item.dart';
 import '../models/cliente.dart';
 import '../models/tipo_pago_mdl.dart';
 import '../data/tipo_pago.dart';
+import '../services/venta_service.dart';
+import '../services/corte_caja_service.dart';
 import '../widgets/cliente_vista_reducida_widget.dart';
 import '../widgets/articulo_listado_reducido_widget.dart';
 
@@ -24,27 +26,41 @@ class FinalizarVentaScreen extends StatefulWidget {
 }
 
 class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
-  TipoPago? _tipoPagoRepository; // Cambiar late por nullable
+  TipoPago? _tipoPagoRepository;
+  VentaService? _ventaService;
+  CorteCajaService? _corteCajaService;
+
   List<TipoPagoMdl> _tiposPago = [];
   final Map<int, TextEditingController> _controllers = {};
   final Map<int, double> _montosPago = {};
-  final TextEditingController _montoRecibidoController =
-      TextEditingController();
   bool _isProcessing = false;
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _initializeDatabase();
+    _initializeServices();
   }
 
-  Future<void> _initializeDatabase() async {
+  Future<void> _initializeServices() async {
     try {
-      // La clase TipoPago maneja internamente la base de datos
+      // Inicializar servicios
       _tipoPagoRepository = await TipoPago.getInstance();
+      _ventaService = await VentaService.getInstance();
+      _corteCajaService = await CorteCajaService.getInstance();
 
-      // Cargar los tipos de pago
+      // Verificar estado del corte
+      final estadoCorte = await _corteCajaService!.verificarEstadoCorte();
+      if (!estadoCorte['existe'] || estadoCorte['estado'] == 'CERRADO') {
+        setState(() {
+          _errorMessage = estadoCorte['mensaje'];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Cargar tipos de pago
       await _cargarTiposPago();
 
       setState(() {
@@ -52,9 +68,9 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
       });
     } catch (e) {
       setState(() {
+        _errorMessage = 'Error al inicializar: $e';
         _isLoading = false;
       });
-      _mostrarError('Error al inicializar los tipos de pago: $e');
     }
   }
 
@@ -81,7 +97,6 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     for (var controller in _controllers.values) {
       controller.dispose();
     }
-    _montoRecibidoController.dispose();
     super.dispose();
   }
 
@@ -125,41 +140,6 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     return 0.0;
   }
 
-  bool _validarPago() {
-    final total = _calcularTotal();
-    final totalPagos = _calcularTotalPagos();
-    final montoEfectivo = _getMontoEfectivo();
-
-    if (totalPagos == 0) {
-      _mostrarError('Debe ingresar al menos un monto de pago');
-      return false;
-    }
-
-    if (totalPagos < total) {
-      _mostrarError('El monto total de pagos es insuficiente');
-      return false;
-    }
-
-    // Si hay exceso, validaciones específicas para efectivo
-    if (totalPagos > total) {
-      final exceso = totalPagos - total;
-
-      if (montoEfectivo == 0) {
-        _mostrarError('Para dar cambio debe haber pago en efectivo');
-        return false;
-      }
-
-      if (exceso > montoEfectivo) {
-        _mostrarError(
-          'El cambio (\$${exceso.toStringAsFixed(2)}) no puede ser mayor al efectivo recibido (\$${montoEfectivo.toStringAsFixed(2)})',
-        );
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   void _onMontoChanged(int idTipoPago, String valor) {
     final double monto = double.tryParse(valor) ?? 0.0;
     setState(() {
@@ -188,21 +168,34 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
   }
 
   Future<void> _procesarVenta() async {
-    if (!_validarPago()) return;
-
     setState(() {
       _isProcessing = true;
     });
 
     try {
-      // Aquí puedes agregar la lógica para guardar la venta en la base de datos
-      // Por ejemplo, crear tablas de ventas, detalle_ventas, pagos, etc.
+      // Filtrar solo los tipos de pago con monto > 0
+      final Map<int, double> tiposPagoFiltrados = {};
+      _montosPago.forEach((id, monto) {
+        if (monto > 0) {
+          tiposPagoFiltrados[id] = monto;
+        }
+      });
 
-      // Simulamos el procesamiento de la venta
-      await Future.delayed(const Duration(seconds: 2));
+      // Procesar la venta usando el servicio
+      final resultado = await _ventaService!.procesarVenta(
+        cliente: widget.cliente,
+        carrito: widget.carrito,
+        tiposPago: tiposPagoFiltrados,
+        descuento: 0.0, // Por ahora sin descuentos
+        iva: 0.0, // Por ahora sin IVA
+      );
 
-      _mostrarExito('Venta procesada exitosamente');
-      _mostrarResumenVenta();
+      if (resultado['success']) {
+        _mostrarExito('Venta procesada exitosamente');
+        _mostrarResumenVenta(resultado);
+      } else {
+        _mostrarError('Error al procesar la venta');
+      }
     } catch (e) {
       _mostrarError('Error al procesar la venta: $e');
     } finally {
@@ -212,8 +205,11 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     }
   }
 
-  void _mostrarResumenVenta() {
-    final cambio = _calcularCambio();
+  void _mostrarResumenVenta(Map<String, dynamic> resultado) {
+    final cambio = resultado['cambio'] ?? 0.0;
+    final total = resultado['total'] ?? 0.0;
+    final totalPagado = resultado['totalPagado'] ?? 0.0;
+    final idVenta = resultado['idVenta'] ?? 0;
 
     showDialog(
       context: context,
@@ -231,6 +227,7 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text('Venta ID: $idVenta'),
               Text('Cliente: ${widget.cliente.nombre}'),
               const Divider(),
               const Text(
@@ -238,15 +235,15 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               ..._tiposPago
-                  .where((tipo) => _montosPago[tipo.idTipoPago]! > 0)
+                  .where((tipo) => (_montosPago[tipo.idTipoPago] ?? 0) > 0)
                   .map(
                     (tipo) => Text(
-                      '${tipo.cTipoPago}: \$${_montosPago[tipo.idTipoPago]!.toStringAsFixed(2)}',
+                      '${tipo.cTipoPago}: \$${(_montosPago[tipo.idTipoPago] ?? 0).toStringAsFixed(2)}',
                     ),
                   ),
               const Divider(),
-              Text('Total: \$${_calcularTotal().toStringAsFixed(2)}'),
-              Text('Pagado: \$${_calcularTotalPagos().toStringAsFixed(2)}'),
+              Text('Total: \$${total.toStringAsFixed(2)}'),
+              Text('Pagado: \$${totalPagado.toStringAsFixed(2)}'),
               if (cambio > 0)
                 Text(
                   'Cambio: \$${cambio.toStringAsFixed(2)}',
@@ -295,6 +292,7 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Pantalla de carga
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
@@ -307,13 +305,54 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('Cargando tipos de pago...'),
+              Text('Inicializando sistema de ventas...'),
             ],
           ),
         ),
       );
     }
 
+    // Pantalla de error
+    if (_errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Error'),
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                'No se puede procesar la venta',
+                style: Theme.of(context).textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _errorMessage!,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Regresar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Pantalla principal
     final total = _calcularTotal();
     final totalPagos = _calcularTotalPagos();
     final cambio = _calcularCambio();
@@ -329,7 +368,7 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Información del cliente usando el widget reutilizable
+            // Información del cliente
             ClienteVistaReducidaWidget(cliente: widget.cliente),
 
             const SizedBox(height: 8),
@@ -349,7 +388,7 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
             if (cambio > 0) _buildCambio(cambio),
 
             if (cambio > 0) const SizedBox(height: 8),
-            // Listado de artículos usando el widget reutilizable
+            // Listado de artículos
             ArticuloListadoReducidoWidget(
               items: widget.carrito,
               editable: false,
@@ -387,7 +426,6 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
     );
   }
 
-  // Método auxiliar para crear cada item de tipo de pago
   Widget _buildTipoPagoItem(TipoPagoMdl tipoPago) {
     final id = tipoPago.idTipoPago ?? 0;
     return Row(

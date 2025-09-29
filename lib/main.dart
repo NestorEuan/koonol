@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'services/corte_caja_service.dart';
 import 'screens/ventas_screen.dart';
 import 'data/data_init.dart';
 
@@ -9,10 +10,34 @@ void main() async {
   // Inicialización normal
   // Inicializar la base de datos antes de ejecutar la app
   try {
+    // 1. Inicializar la base de datos
+    if (kDebugMode) {
+      print('🚀 Inicializando base de datos...');
+    }
     await DataInit.initDb();
+
+    // 2. Inicializar el sistema de cortes de caja
+    if (kDebugMode) {
+      print('📊 Inicializando sistema de cortes...');
+    }
+    final corteCajaService = await CorteCajaService.getInstance();
+    final resultadoCortes = await corteCajaService.inicializarSistemaCortes();
+
+    if (resultadoCortes['inicializado']) {
+      if (kDebugMode) {
+        print('✅ Sistema inicializado correctamente');
+        print('📋 ${corteCajaService.obtenerResumenCorte()}');
+      }
+    } else {
+      if (kDebugMode) {
+        print(
+          '⚠️ Advertencia en inicialización de cortes: ${resultadoCortes['mensaje']}',
+        );
+      }
+    }
   } catch (e) {
     if (kDebugMode) {
-      print('Error crítico al inicializar la base de datos: $e');
+      print('❌ Error crítico al inicializar la aplicación: $e');
     }
     // Aquí podrías mostrar un dialog de error o manejar el fallo
   }
