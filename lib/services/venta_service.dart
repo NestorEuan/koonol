@@ -161,7 +161,7 @@ class VentaService {
       await _actualizarAcumuladosDetalle(txn, idCorteCaja, carrito, ahora);
 
       // 7. Actualizar el importe total del corte
-      await _actualizarImporteCorte(idCorteCaja);
+      await _actualizarImporteCorte(txn, idCorteCaja);
 
       return {
         'success': true,
@@ -344,11 +344,24 @@ class VentaService {
   }
 
   /// Actualiza el importe total del corte de caja
-  Future<void> _actualizarImporteCorte(int idCorteCaja) async {
+  /// Actualiza el importe total del corte de caja
+  Future<void> _actualizarImporteCorte(dynamic txn, int idCorteCaja) async {
     try {
-      final double totalCorte = await _corteCajaVentaRepository
-          .getTotalVentasCorte(idCorteCaja);
-      await _corteCajaService.actualizarImporteCorte(idCorteCaja, totalCorte);
+      // Calcular el total directamente en la transacción
+      final result = await txn.rawQuery(
+        'SELECT COALESCE(SUM(nImporte + nIVA - nDescuento), 0) as total FROM cortecajaventa WHERE idCorteCaja = ?',
+        [idCorteCaja],
+      );
+
+      final double totalCorte = (result.first['total'] as double?) ?? 0.0;
+
+      // Actualizar el importe del corte usando la transacción
+      await txn.update(
+        'cortecaja',
+        {'nImporte': totalCorte},
+        where: 'idCorteCaja = ?',
+        whereArgs: [idCorteCaja],
+      );
 
       if (kDebugMode) {
         print(
