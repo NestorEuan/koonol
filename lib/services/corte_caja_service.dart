@@ -314,7 +314,6 @@ class CorteCajaService {
 
       final CorteCajaMdl corte = estadoCorte['corte'];
       final String fecha = _formatearFecha(corte.dtFecha);
-      final String importe = corte.nImporte.toStringAsFixed(2);
 
       return 'Corte ${corte.idCorteCaja} - $fecha - \$importe - ${corte.cEstado}';
     } catch (e) {

@@ -3,9 +3,6 @@ import '../data/database_manager.dart';
 import '../data/venta.dart';
 import '../data/venta_detalle.dart';
 import '../data/venta_tipo_pago.dart';
-import '../data/corte_caja_venta.dart';
-import '../data/acum_corte_detalle.dart';
-import '../data/acum_corte_tipo_pago.dart';
 import '../models/venta_mdl.dart';
 import '../models/venta_detalle_mdl.dart';
 import '../models/venta_tipo_pago_mdl.dart';
@@ -22,7 +19,6 @@ class VentaService {
   late final Venta _ventaRepository;
   late final VentaDetalle _ventaDetalleRepository;
   late final VentaTipoPago _ventaTipoPagoRepository;
-  late final CorteCajaVenta _corteCajaVentaRepository;
   late final CorteCajaService _corteCajaService;
 
   static VentaService? _instance;
@@ -46,15 +42,18 @@ class VentaService {
     _ventaRepository = Venta(database);
     _ventaDetalleRepository = VentaDetalle(database);
     _ventaTipoPagoRepository = VentaTipoPago(database);
-    _corteCajaVentaRepository = CorteCajaVenta(database);
     _corteCajaService = await CorteCajaService.getInstance();
   }
 
   /// Procesa una venta completa con todos sus detalles y acumulados
+  /// Procesa una venta completa con todos sus detalles y acumulados
+  /// NOTA: Asume que las validaciones de UI ya se realizaron
   Future<Map<String, dynamic>> procesarVenta({
     required Cliente cliente,
     required List<CarritoItem> carrito,
     required Map<int, double> tiposPago,
+    required double totalPagado,
+    required double cambio,
     double descuento = 0.0,
     double iva = 0.0,
   }) async {
@@ -63,7 +62,7 @@ class VentaService {
         print('🛒 Iniciando procesamiento de venta...');
       }
 
-      // Validar que se puede realizar la venta
+      // Validación crítica: Verificar que hay corte activo
       final validacionCorte = await _corteCajaService.validarVentaPermitida();
       if (!validacionCorte['permitida']) {
         throw Exception(validacionCorte['mensaje']);
@@ -72,20 +71,11 @@ class VentaService {
       final corteActivo = validacionCorte['corte'];
       final int idCorteCaja = corteActivo.idCorteCaja;
 
-      // Validar datos de entrada
-      _validarDatosVenta(cliente, carrito, tiposPago);
+      // Validaciones mínimas de integridad de datos
+      _validarIntegridadDatos(cliente, carrito, tiposPago);
 
       // Calcular totales
       final totales = _calcularTotalesVenta(carrito, descuento, iva);
-      final double totalPagado = tiposPago.values.fold(
-        0.0,
-        (sum, monto) => sum + monto,
-      );
-      final double cambio = _calcularCambio(
-        totales['total']!,
-        totalPagado,
-        tiposPago,
-      );
 
       // Ejecutar venta en transacción
       final resultado = await _ejecutarVentaEnTransaccion(
@@ -111,6 +101,52 @@ class VentaService {
     }
   }
 
+  /// Valida solo la integridad crítica de datos (no validaciones de negocio)
+  void _validarIntegridadDatos(
+    Cliente cliente,
+    List<CarritoItem> carrito,
+    Map<int, double> tiposPago,
+  ) {
+    // Validar cliente existe
+    if (cliente.idCliente <= 0) {
+      throw Exception('ID de cliente inválido');
+    }
+
+    // Validar carrito no está vacío
+    if (carrito.isEmpty) {
+      throw Exception('El carrito está vacío');
+    }
+
+    // Validar integridad de artículos
+    for (final item in carrito) {
+      if (item.articulo.idArticulo == null || item.articulo.idArticulo! <= 0) {
+        throw Exception(
+          'ID de artículo inválido: ${item.articulo.cDescripcion}',
+        );
+      }
+      if (item.cantidad <= 0) {
+        throw Exception(
+          'Cantidad inválida para: ${item.articulo.cDescripcion}',
+        );
+      }
+      if (item.precioVenta < 0) {
+        throw Exception('Precio inválido para: ${item.articulo.cDescripcion}');
+      }
+    }
+
+    // Validar que hay al menos un tipo de pago
+    if (tiposPago.isEmpty) {
+      throw Exception('No se especificaron formas de pago');
+    }
+
+    // Validar IDs de tipos de pago
+    for (final idTipoPago in tiposPago.keys) {
+      if (idTipoPago <= 0) {
+        throw Exception('ID de tipo de pago inválido');
+      }
+    }
+  }
+
   /// Ejecuta toda la venta en una transacción para garantizar consistencia
   Future<Map<String, dynamic>> _ejecutarVentaEnTransaccion({
     required Cliente cliente,
@@ -123,7 +159,9 @@ class VentaService {
   }) async {
     final dbManager = DatabaseManager();
 
-    return await dbManager.transaction<Map<String, dynamic>>((txn) async {
+    final resultado = await dbManager.transaction<Map<String, dynamic>>((
+      txn,
+    ) async {
       final DateTime ahora = DateTime.now();
       final DateTime fecha = DateTime(ahora.year, ahora.month, ahora.day);
 
@@ -160,7 +198,7 @@ class VentaService {
       // 6. Actualizar acumulados de detalle
       await _actualizarAcumuladosDetalle(txn, idCorteCaja, carrito, ahora);
 
-      // 7. Actualizar el importe total del corte
+      // 7. Actualizar el importe total del corte (dentro de la transacción)
       await _actualizarImporteCorte(txn, idCorteCaja);
 
       return {
@@ -173,6 +211,8 @@ class VentaService {
         'mensaje': 'Venta procesada exitosamente',
       };
     });
+
+    return resultado;
   }
 
   /// Crea los detalles de la venta
@@ -343,8 +383,7 @@ class VentaService {
     }
   }
 
-  /// Actualiza el importe total del corte de caja
-  /// Actualiza el importe total del corte de caja
+  /// Actualiza el importe total del corte de caja DENTRO de la transacción
   Future<void> _actualizarImporteCorte(dynamic txn, int idCorteCaja) async {
     try {
       // Calcular el total directamente en la transacción
@@ -449,27 +488,6 @@ class VentaService {
     };
   }
 
-  /// Calcula el cambio a entregar
-  double _calcularCambio(
-    double totalVenta,
-    double totalPagado,
-    Map<int, double> tiposPago,
-  ) {
-    if (totalPagado <= totalVenta) {
-      return 0.0;
-    }
-
-    // Buscar si hay pago en efectivo (asumiendo que efectivo tiene ID 1)
-    final double efectivo = tiposPago[1] ?? 0.0;
-
-    if (efectivo <= 0) {
-      return 0.0; // No hay efectivo, no se puede dar cambio
-    }
-
-    final double exceso = totalPagado - totalVenta;
-    return exceso <= efectivo ? exceso : efectivo;
-  }
-
   /// Obtiene el resumen de una venta por ID
   Future<Map<String, dynamic>?> obtenerResumenVenta(int idVenta) async {
     try {
@@ -528,13 +546,14 @@ class VentaService {
   }
 
   /// Valida si se puede procesar una venta
+  /// SIMPLIFICAR - Solo validaciones para consultas, no para ventas
   Future<Map<String, dynamic>> validarProcesamientoVenta({
     required Cliente cliente,
     required List<CarritoItem> carrito,
     required Map<int, double> tiposPago,
   }) async {
     try {
-      // Validar corte activo
+      // Solo validar corte activo
       final validacionCorte = await _corteCajaService.validarVentaPermitida();
       if (!validacionCorte['permitida']) {
         return {
@@ -544,9 +563,9 @@ class VentaService {
         };
       }
 
-      // Validar datos básicos
+      // Validar integridad básica
       try {
-        _validarDatosVenta(cliente, carrito, tiposPago);
+        _validarIntegridadDatos(cliente, carrito, tiposPago);
       } catch (e) {
         return {
           'valida': false,
@@ -555,50 +574,7 @@ class VentaService {
         };
       }
 
-      // Validar que el total de pagos cubra la venta
-      final totales = _calcularTotalesVenta(carrito, 0.0, 0.0);
-      final double totalPagado = tiposPago.values.fold(
-        0.0,
-        (sum, monto) => sum + monto,
-      );
-
-      if (totalPagado < totales['total']!) {
-        return {
-          'valida': false,
-          'razon': 'PAGO_INSUFICIENTE',
-          'mensaje': 'El monto pagado es insuficiente',
-          'faltante': totales['total']! - totalPagado,
-        };
-      }
-
-      // Validar cambio si hay exceso
-      if (totalPagado > totales['total']!) {
-        final double cambio = _calcularCambio(
-          totales['total']!,
-          totalPagado,
-          tiposPago,
-        );
-        final double exceso = totalPagado - totales['total']!;
-
-        if (cambio < exceso) {
-          return {
-            'valida': false,
-            'razon': 'CAMBIO_INVALIDO',
-            'mensaje':
-                'No se puede dar el cambio completo sin efectivo suficiente',
-            'cambioMaximo': cambio,
-            'excesoTotal': exceso,
-          };
-        }
-      }
-
-      return {
-        'valida': true,
-        'mensaje': 'Venta válida para procesar',
-        'totales': totales,
-        'totalPagado': totalPagado,
-        'cambio': _calcularCambio(totales['total']!, totalPagado, tiposPago),
-      };
+      return {'valida': true, 'mensaje': 'Venta válida para procesar'};
     } catch (e) {
       return {
         'valida': false,
@@ -609,34 +585,40 @@ class VentaService {
   }
 
   /// Obtiene estadísticas básicas de ventas
+  /// Obtiene estadísticas básicas de ventas (OPTIMIZADO)
   Future<Map<String, dynamic>> obtenerEstadisticasVentas([
     DateTime? fecha,
   ]) async {
     try {
       final fechaConsulta = fecha ?? DateTime.now();
-      final ventas = await obtenerVentasDelDia(fechaConsulta);
-      final total = await obtenerTotalVentasDelDia(fechaConsulta);
+      final fechaStr = fechaConsulta.toIso8601String().split('T')[0];
 
-      if (ventas.isEmpty) {
-        return {
-          'totalVentas': 0,
-          'montoTotal': 0.0,
-          'promedioVenta': 0.0,
-          'ventaMinima': 0.0,
-          'ventaMaxima': 0.0,
-        };
-      }
+      final dbManager = DatabaseManager();
+      final db = await dbManager.database;
 
-      final List<double> montos = ventas.map((v) => v.total).toList();
-      montos.sort();
+      // Una sola query para obtener todas las estadísticas
+      final result = await db.rawQuery(
+        '''
+      SELECT 
+        COUNT(*) as totalVentas,
+        COALESCE(SUM(nImporte + nIVA - nDescuento), 0) as montoTotal,
+        COALESCE(AVG(nImporte + nIVA - nDescuento), 0) as promedioVenta,
+        COALESCE(MIN(nImporte + nIVA - nDescuento), 0) as ventaMinima,
+        COALESCE(MAX(nImporte + nIVA - nDescuento), 0) as ventaMaxima
+      FROM venta
+      WHERE dtFecha = ?
+      ''',
+        [fechaStr],
+      );
 
+      final data = result.first;
       return {
-        'totalVentas': ventas.length,
-        'montoTotal': total,
-        'promedioVenta': total / ventas.length,
-        'ventaMinima': montos.first,
-        'ventaMaxima': montos.last,
-        'fecha': fechaConsulta.toIso8601String().split('T')[0],
+        'totalVentas': data['totalVentas'] as int,
+        'montoTotal': (data['montoTotal'] as double?) ?? 0.0,
+        'promedioVenta': (data['promedioVenta'] as double?) ?? 0.0,
+        'ventaMinima': (data['ventaMinima'] as double?) ?? 0.0,
+        'ventaMaxima': (data['ventaMaxima'] as double?) ?? 0.0,
+        'fecha': fechaStr,
       };
     } catch (e) {
       if (kDebugMode) {
@@ -758,13 +740,6 @@ class VentaService {
         'activo': false,
       };
     }
-  }
-
-  /// Método auxiliar para obtener el tipo de cambio de efectivo
-  int _getEfectivoTipoPagoId() {
-    // Por defecto asumimos que el efectivo tiene ID 1
-    // Esto se puede hacer más robusto consultando la base de datos
-    return 1;
   }
 
   /// Método para limpiar recursos (opcional)

@@ -181,11 +181,17 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
         }
       });
 
-      // Procesar la venta usando el servicio
+      // Calcular valores que necesita el servicio
+      final double totalPagado = _calcularTotalPagos();
+      final double cambio = _calcularCambio();
+
+      // Procesar la venta - El servicio ya no valida pagos, solo guarda
       final resultado = await _ventaService!.procesarVenta(
         cliente: widget.cliente,
         carrito: widget.carrito,
         tiposPago: tiposPagoFiltrados,
+        totalPagado: totalPagado,
+        cambio: cambio,
         descuento: 0.0, // Por ahora sin descuentos
         iva: 0.0, // Por ahora sin IVA
       );

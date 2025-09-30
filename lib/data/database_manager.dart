@@ -1,10 +1,12 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 class DatabaseManager {
   static const String _dbName = 'koonol.db';
-  static const int _dbVersion = 3; // Incrementado para agregar nuevas tablas
+  static const int _dbVersion = 4; // Incrementado para agregar nuevas tablas
   static Database? _database;
   static bool _isInitialized = false;
 
@@ -194,12 +196,29 @@ class DatabaseManager {
       )
     ''');
 
+    // Tabla usuario
+    await db.execute('''
+      CREATE TABLE usuario (
+        idUsuario INTEGER PRIMARY KEY AUTOINCREMENT,
+        cUsuario TEXT NOT NULL UNIQUE,
+        cNombre TEXT NOT NULL,
+        cContrasena TEXT NOT NULL
+      )
+    ''');
+
     // Insertar datos iniciales
     await _insertInitialData(db);
 
     if (kDebugMode) {
       print('Base de datos creada exitosamente con datos iniciales');
     }
+  }
+
+  // Función auxiliar para encriptar contraseñas
+  String encriptarContrasena(String contrasena) {
+    final bytes = utf8.encode(contrasena);
+    final hash = sha256.convert(bytes);
+    return hash.toString();
   }
 
   // Insertar datos iniciales
@@ -228,6 +247,14 @@ class DatabaseManager {
     if (kDebugMode) {
       print('Datos iniciales insertados correctamente');
     }
+
+    // Datos iniciales para usuarios
+    final contrasenaEncriptada = encriptarContrasena('12345');
+    await db.execute('''
+      INSERT INTO usuario (cUsuario, cNombre, cContrasena) VALUES 
+      ('luis', 'Luis Ek', '$contrasenaEncriptada'),
+      ('cajero', 'Cajero de prueba', '$contrasenaEncriptada')
+    ''');
   }
 
   // Manejar actualizaciones de base de datos
@@ -417,6 +444,49 @@ class DatabaseManager {
       } catch (e) {
         if (kDebugMode) {
           print('Error durante la actualización v3: $e');
+        }
+        rethrow;
+      }
+    }
+
+    if (oldVersion < 4) {
+      // Crear tabla usuario
+      try {
+        final tablesResult = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name = 'usuario'",
+        );
+
+        if (tablesResult.isEmpty) {
+          await db.execute('''
+            CREATE TABLE usuario (
+              idUsuario INTEGER PRIMARY KEY AUTOINCREMENT,
+              cUsuario TEXT NOT NULL UNIQUE,
+              cNombre TEXT NOT NULL,
+              cContrasena TEXT NOT NULL
+            )
+          ''');
+
+          // Insertar usuarios iniciales
+          String encriptarContrasena(String contrasena) {
+            final bytes = utf8.encode(contrasena);
+            final hash = sha256.convert(bytes);
+            return hash.toString();
+          }
+
+          final contrasenaEncriptada = encriptarContrasena('12345');
+          await db.execute('''
+            INSERT INTO usuario (cUsuario, cNombre, cContrasena) VALUES 
+            ('luis', 'Luis Ek', '$contrasenaEncriptada'),
+            ('cajero', 'Cajero de prueba', '$contrasenaEncriptada')
+          ''');
+
+          if (kDebugMode) {
+            print('Tabla usuario creada exitosamente');
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error durante la actualización v4: $e');
         }
         rethrow;
       }
