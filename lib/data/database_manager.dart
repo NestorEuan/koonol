@@ -6,7 +6,8 @@ import 'dart:convert';
 
 class DatabaseManager {
   static const String _dbName = 'koonol.db';
-  static const int _dbVersion = 4; // Incrementado para agregar nuevas tablas
+  static const int _dbVersion =
+      5; //4; // Incrementado para agregar nuevas tablas
   static Database? _database;
   static bool _isInitialized = false;
 
@@ -104,6 +105,7 @@ class DatabaseManager {
     ''');
 
     // Tabla venta
+    // Tabla venta
     await db.execute('''
       CREATE TABLE venta (
         idVenta INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,9 +117,11 @@ class DatabaseManager {
         nCambio REAL NOT NULL DEFAULT 0.0,
         dtAlta TEXT NOT NULL,
         dtFecha TEXT NOT NULL,
+        cEstado TEXT NOT NULL DEFAULT 'ACTIVA',
         CONSTRAINT chk_importe CHECK (nImporte >= 0),
         CONSTRAINT chk_iva CHECK (nIVA >= 0),
-        CONSTRAINT chk_descuento CHECK (nDescuento >= 0)
+        CONSTRAINT chk_descuento CHECK (nDescuento >= 0),
+        CONSTRAINT chk_estado CHECK (cEstado IN ('ACTIVA', 'CANCELADA'))
       )
     ''');
 
@@ -436,6 +440,29 @@ class DatabaseManager {
               FOREIGN KEY (idArticulo) REFERENCES articulo(idArticulo)
             )
           ''');
+        }
+
+        if (oldVersion < 5) {
+          // Agregar campo cEstado a la tabla venta
+          try {
+            // Verificar si la columna ya existe
+            final columns = await db.rawQuery('PRAGMA table_info(venta)');
+            final hasEstado = columns.any((col) => col['name'] == 'cEstado');
+
+            if (!hasEstado) {
+              await db.execute('''
+        ALTER TABLE venta ADD COLUMN cEstado TEXT NOT NULL DEFAULT 'ACTIVA'
+      ''');
+
+              if (kDebugMode) {
+                print('✅ Columna cEstado agregada a tabla venta');
+              }
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('⚠️ Error al agregar columna cEstado: $e');
+            }
+          }
         }
 
         if (kDebugMode) {

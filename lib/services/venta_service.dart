@@ -742,6 +742,163 @@ class VentaService {
     }
   }
 
+  /// Cancela una venta y actualiza los acumulados correspondientes
+  Future<Map<String, dynamic>> cancelarVentaCompleta(int idVenta) async {
+    try {
+      if (kDebugMode) {
+        print('🚫 Cancelando venta ID: $idVenta');
+      }
+
+      // Obtener detalle completo antes de cancelar
+      final detalle = await _ventaRepository.getDetalleCompletoVenta(idVenta);
+      if (detalle == null) {
+        return {'success': false, 'mensaje': 'Venta no encontrada'};
+      }
+
+      final venta = detalle['venta'] as VentaMdl;
+
+      // Validar que esté activa
+      if (venta.cEstado == 'CANCELADA') {
+        return {'success': false, 'mensaje': 'La venta ya está cancelada'};
+      }
+
+      // Obtener el corte asociado
+      final dbManager = DatabaseManager();
+      final db = await dbManager.database;
+
+      final corteCajaVenta = await db.query(
+        'cortecajaventa',
+        where: 'idVenta = ?',
+        whereArgs: [idVenta],
+        limit: 1,
+      );
+
+      if (corteCajaVenta.isEmpty) {
+        return {
+          'success': false,
+          'mensaje': 'No se encontró el corte asociado',
+        };
+      }
+
+      final idCorteCaja = corteCajaVenta.first['idCorteCaja'] as int;
+
+      // Ejecutar cancelación en transacción
+      await dbManager.transaction((txn) async {
+        // 1. Cancelar la venta
+        await txn.update(
+          'venta',
+          {'cEstado': 'CANCELADA'},
+          where: 'idVenta = ?',
+          whereArgs: [idVenta],
+        );
+
+        // 2. Obtener detalles y restar de acumulados de artículos
+        final detalles = await txn.query(
+          'ventadetalle',
+          where: 'idVenta = ?',
+          whereArgs: [idVenta],
+        );
+
+        for (var detalle in detalles) {
+          final idArticulo = detalle['idArticulo'] as int;
+          final cantidad = (detalle['nCantidad'] as double?) ?? 0.0;
+          final precio = (detalle['nPrecio'] as double?) ?? 0.0;
+          final costo = (detalle['nCosto'] as double?) ?? 0.0;
+
+          final importeItem = -(cantidad * precio); // Negativo para restar
+          final costoItem = -(cantidad * costo);
+
+          // Actualizar acumulado (usando valores negativos)
+          final existing = await txn.query(
+            'acumcortedetalle',
+            where: 'idCorte = ? AND idArticulo = ?',
+            whereArgs: [idCorteCaja, idArticulo],
+          );
+
+          if (existing.isNotEmpty) {
+            final importeActual =
+                (existing.first['nImporte'] as double?) ?? 0.0;
+            final costoActual = (existing.first['nCosto'] as double?) ?? 0.0;
+
+            await txn.update(
+              'acumcortedetalle',
+              {
+                'nImporte': importeActual + importeItem,
+                'nCosto': costoActual + costoItem,
+              },
+              where: 'idCorte = ? AND idArticulo = ?',
+              whereArgs: [idCorteCaja, idArticulo],
+            );
+          }
+        }
+
+        // 3. Restar de acumulados de tipos de pago
+        final tiposPago = await txn.query(
+          'ventatipopago',
+          where: 'idVenta = ?',
+          whereArgs: [idVenta],
+        );
+
+        for (var tipoPago in tiposPago) {
+          final idTipoPago = tipoPago['idTipoPago'] as int;
+          final importe =
+              -((tipoPago['nImporte'] as double?) ?? 0.0); // Negativo
+
+          final existing = await txn.query(
+            'acumcortetipopago',
+            where: 'idCorteCaja = ? AND idTipoPago = ?',
+            whereArgs: [idCorteCaja, idTipoPago],
+          );
+
+          if (existing.isNotEmpty) {
+            final importeActual =
+                (existing.first['nImporte'] as double?) ?? 0.0;
+
+            await txn.update(
+              'acumcortetipopago',
+              {'nImporte': importeActual + importe},
+              where: 'idCorteCaja = ? AND idTipoPago = ?',
+              whereArgs: [idCorteCaja, idTipoPago],
+            );
+          }
+        }
+
+        // 4. Eliminar de cortecajaventa
+        await txn.delete(
+          'cortecajaventa',
+          where: 'idVenta = ?',
+          whereArgs: [idVenta],
+        );
+
+        // 5. Actualizar importe del corte
+        final totalResult = await txn.rawQuery(
+          'SELECT COALESCE(SUM(nImporte + nIVA - nDescuento), 0) as total FROM cortecajaventa WHERE idCorteCaja = ?',
+          [idCorteCaja],
+        );
+
+        final totalCorte = (totalResult.first['total'] as double?) ?? 0.0;
+
+        await txn.update(
+          'cortecaja',
+          {'nImporte': totalCorte},
+          where: 'idCorteCaja = ?',
+          whereArgs: [idCorteCaja],
+        );
+      });
+
+      return {
+        'success': true,
+        'mensaje': 'Venta cancelada exitosamente',
+        'idVenta': idVenta,
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error al cancelar venta: $e');
+      }
+      return {'success': false, 'mensaje': 'Error: $e'};
+    }
+  }
+
   /// Método para limpiar recursos (opcional)
   void dispose() {
     // Aquí se pueden limpiar recursos si es necesario en el futuro

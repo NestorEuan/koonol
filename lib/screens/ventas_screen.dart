@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:koonol/screens/articulos_screen.dart';
 import 'package:koonol/screens/carrito_screen.dart';
 import 'package:koonol/screens/finalizar_venta.dart';
+import 'package:koonol/screens/login_screen.dart';
+import 'package:koonol/screens/menu_principal_screen.dart';
+import 'package:koonol/services/auth_service.dart';
 import '../models/cliente.dart';
 import '../models/carrito_item.dart';
 import '../widgets/cliente_search_widget.dart';
@@ -110,6 +113,11 @@ class _VentasScreenState extends State<VentasScreen> {
       appBar: AppBar(
         title: const Text('Sistema de Ventas'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () => _mostrarMenuOpciones(context),
+          tooltip: 'Menú',
+        ),
         actions: [
           // Botón del carrito
           Stack(
@@ -222,5 +230,137 @@ class _VentasScreenState extends State<VentasScreen> {
         ),
       ),
     );
+  }
+
+  void _mostrarMenuOpciones(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.home, color: Colors.blue),
+              title: const Text('Ir a Inicio'),
+              onTap: () {
+                Navigator.pop(context);
+                _irAInicio(context);
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Cerrar Sesión'),
+              onTap: () {
+                Navigator.pop(context);
+                _cerrarSesion(context);
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _irAInicio(BuildContext context) async {
+    try {
+      final authService = await AuthService.getInstance();
+      final usuario = authService.usuarioActual ?? '';
+
+      // Guardar referencia al ScaffoldMessenger ANTES del await
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+
+      // Verificar mounted después de operaciones asíncronas
+      if (!mounted) return;
+
+      // Si es cajero, mostrar mensaje (ya está en inicio)
+      if (usuario.toLowerCase() == 'cajero') {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Ya estás en la pantalla de inicio'),
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      // Si es administrador, ir al menú principal
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MenuPrincipalScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _cerrarSesion(BuildContext context) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cerrar Sesión'),
+        content: const Text('¿Está seguro que desea cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Cerrar Sesión'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && mounted) {
+      try {
+        final authService = await AuthService.getInstance();
+        await authService.logout();
+
+        if (!mounted) return;
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cerrar sesión: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

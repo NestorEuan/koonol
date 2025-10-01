@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:koonol/data/data_init.dart';
+import 'package:koonol/screens/menu_principal_screen.dart';
 import 'services/corte_caja_service.dart';
 import 'screens/ventas_screen.dart';
 import 'screens/splash_screen.dart';
@@ -158,7 +159,26 @@ class _AppInitializerState extends State<AppInitializer> {
 
         // Si hay sesión activa, ir a VentasScreen, si no, ir a LoginScreen
         if (snapshot.data == true) {
-          return const VentasScreen();
+          return FutureBuilder<String?>(
+            future: _obtenerRolUsuario(),
+            builder: (context, roleSnapshot) {
+              if (roleSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              final usuario = roleSnapshot.data ?? '';
+
+              // Si es cajero, ir directo a VentasScreen
+              if (usuario.toLowerCase() == 'cajero') {
+                return const VentasScreen();
+              }
+
+              // Si es administrador (luis), ir al menú principal
+              return const MenuPrincipalScreen();
+            },
+          );
         } else {
           return const LoginScreen();
         }
@@ -176,6 +196,19 @@ class _AppInitializerState extends State<AppInitializer> {
         print('Error al verificar sesión: $e');
       }
       return false;
+    }
+  }
+
+  // Agregar este método después de _verificarSesion
+  Future<String?> _obtenerRolUsuario() async {
+    try {
+      final authService = await AuthService.getInstance();
+      return authService.usuarioActual;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al obtener rol de usuario: $e');
+      }
+      return null;
     }
   }
 }

@@ -1,0 +1,405 @@
+import 'package:flutter/foundation.dart';
+import '../data/database_manager.dart';
+import '../data/venta.dart';
+import '../data/venta_detalle.dart';
+import '../data/venta_tipo_pago.dart';
+import '../data/corte_caja.dart';
+import '../data/acum_corte_detalle.dart';
+import '../data/acum_corte_tipo_pago.dart';
+import '../data/corte_caja_venta.dart';
+import '../models/venta_mdl.dart';
+
+/// Servicio para manejar la cancelación de ventas
+/// Actualiza todos los registros relacionados: cortes, acumulados, etc.
+class CancelacionVentaService {
+  late final Venta _ventaRepository;
+  /*
+  late final VentaDetalle _ventaDetalleRepository;
+  late final VentaTipoPago _ventaTipoPagoRepository;
+  late final CorteCaja _corteCajaRepository;
+  late final AcumCorteDetalle _acumCorteDetalleRepository;
+  late final AcumCorteTipoPago _acumCorteTipoPagoRepository;
+  late final CorteCajaVenta _corteCajaVentaRepository;
+  */
+
+  static CancelacionVentaService? _instance;
+
+  // Singleton pattern
+  CancelacionVentaService._internal();
+
+  static Future<CancelacionVentaService> getInstance() async {
+    if (_instance == null) {
+      _instance = CancelacionVentaService._internal();
+      await _instance!._initialize();
+    }
+    return _instance!;
+  }
+
+  /// Inicializa todos los repositorios necesarios
+  Future<void> _initialize() async {
+    final dbManager = DatabaseManager();
+    final database = await dbManager.database;
+
+    _ventaRepository = Venta(database);
+    /*
+    _ventaDetalleRepository = VentaDetalle(database);
+    _ventaTipoPagoRepository = VentaTipoPago(database);
+    _corteCajaRepository = CorteCaja(database);
+    _acumCorteDetalleRepository = AcumCorteDetalle(database);
+    _acumCorteTipoPagoRepository = AcumCorteTipoPago(database);
+    _corteCajaVentaRepository = CorteCajaVenta(database);
+  }
+  */
+  /// Valida si una venta se puede cancelar
+  Future<Map<String, dynamic>> validarCancelacion(int idVenta) async {
+    try {
+      if (kDebugMode) {
+        print('🔍 Validando cancelación de venta ID: $idVenta');
+      }
+
+      // Verificar que la venta existe
+      final venta = await _ventaRepository.readById(idVenta);
+      if (venta == null) {
+        return {
+          'puede': false,
+          'razon': 'NO_EXISTE',
+          'mensaje': 'La venta no existe',
+        };
+      }
+
+      // Verificar que la venta esté activa
+      if (venta.cEstado == 'CANCELADA') {
+        return {
+          'puede': false,
+          'razon': 'YA_CANCELADA',
+          'mensaje': 'La venta ya está cancelada',
+        };
+      }
+
+      // Verificar que no sea una venta muy antigua (opcional - por ahora permitimos cualquier fecha)
+      // Puedes agregar validaciones adicionales según tus reglas de negocio
+
+      return {
+        'puede': true,
+        'venta': venta,
+        'mensaje': 'La venta se puede cancelar',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error al validar cancelación: $e');
+      }
+      return {
+        'puede': false,
+        'razon': 'ERROR',
+        'mensaje': 'Error al validar la cancelación: $e',
+      };
+    }
+  }
+
+  /// Cancela una venta y actualiza todos los acumulados
+  Future<Map<String, dynamic>> cancelarVenta(int idVenta, String motivo) async {
+    try {
+      if (kDebugMode) {
+        print('🚫 Iniciando cancelación de venta ID: $idVenta');
+        print('📝 Motivo: $motivo');
+      }
+
+      // Validar que se puede cancelar
+      final validacion = await validarCancelacion(idVenta);
+      if (!validacion['puede']) {
+        return {
+          'success': false,
+          'mensaje': validacion['mensaje'],
+          'razon': validacion['razon'],
+        };
+      }
+
+      final venta = validacion['venta'] as VentaMdl;
+
+      // Ejecutar cancelación en transacción
+      final resultado = await _ejecutarCancelacionEnTransaccion(
+        idVenta: idVenta,
+        venta: venta,
+        motivo: motivo,
+      );
+
+      if (kDebugMode) {
+        print('✅ Venta cancelada exitosamente');
+      }
+
+      return resultado;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error al cancelar venta: $e');
+      }
+      return {'success': false, 'mensaje': 'Error al cancelar la venta: $e'};
+    }
+  }
+
+  /// Ejecuta la cancelación en una transacción para garantizar consistencia
+  Future<Map<String, dynamic>> _ejecutarCancelacionEnTransaccion({
+    required int idVenta,
+    required VentaMdl venta,
+    required String motivo,
+  }) async {
+    final dbManager = DatabaseManager();
+
+    final resultado = await dbManager.transaction<Map<String, dynamic>>((
+      txn,
+    ) async {
+      // 1. Obtener el corte al que pertenece la venta
+      final corteCajaVenta = await txn.query(
+        'cortecajaventa',
+        where: 'idVenta = ?',
+        whereArgs: [idVenta],
+        limit: 1,
+      );
+
+      if (corteCajaVenta.isEmpty) {
+        throw Exception('No se encontró el corte asociado a la venta');
+      }
+
+      final int idCorteCaja = corteCajaVenta.first['idCorteCaja'] as int;
+
+      if (kDebugMode) {
+        print('📊 Venta asociada al corte: $idCorteCaja');
+      }
+
+      // 2. Obtener detalles de la venta para actualizar acumulados
+      final detalles = await txn.query(
+        'ventadetalle',
+        where: 'idVenta = ?',
+        whereArgs: [idVenta],
+      );
+
+      // 3. Obtener tipos de pago de la venta
+      final tiposPago = await txn.query(
+        'ventatipopago',
+        where: 'idVenta = ?',
+        whereArgs: [idVenta],
+      );
+
+      // 4. Actualizar estado de la venta
+      await txn.update(
+        'venta',
+        {'cEstado': 'CANCELADA'},
+        where: 'idVenta = ?',
+        whereArgs: [idVenta],
+      );
+
+      if (kDebugMode) {
+        print('✓ Estado de venta actualizado a CANCELADA');
+      }
+
+      // 5. Restar de los acumulados de detalle (artículos)
+      for (var detalle in detalles) {
+        final idArticulo = detalle['idArticulo'] as int;
+        final cantidad = (detalle['nCantidad'] as double?) ?? 0.0;
+        final precio = (detalle['nPrecio'] as double?) ?? 0.0;
+        final costo = (detalle['nCosto'] as double?) ?? 0.0;
+        final importeItem = cantidad * precio;
+        final costoItem = cantidad * costo;
+
+        // Obtener acumulado actual
+        final acumulado = await txn.query(
+          'acumcortedetalle',
+          where: 'idCorte = ? AND idArticulo = ?',
+          whereArgs: [idCorteCaja, idArticulo],
+          limit: 1,
+        );
+
+        if (acumulado.isNotEmpty) {
+          final importeActual = (acumulado.first['nImporte'] as double?) ?? 0.0;
+          final costoActual = (acumulado.first['nCosto'] as double?) ?? 0.0;
+          final nuevoImporte = importeActual - importeItem;
+          final nuevoCosto = costoActual - costoItem;
+
+          await txn.update(
+            'acumcortedetalle',
+            {
+              'nImporte': nuevoImporte > 0 ? nuevoImporte : 0,
+              'nCosto': nuevoCosto > 0 ? nuevoCosto : 0,
+            },
+            where: 'idCorte = ? AND idArticulo = ?',
+            whereArgs: [idCorteCaja, idArticulo],
+          );
+        }
+      }
+
+      if (kDebugMode) {
+        print('✓ Acumulados de detalle actualizados');
+      }
+
+      // 6. Restar de los acumulados de tipos de pago
+      for (var tipoPago in tiposPago) {
+        final idTipoPago = tipoPago['idTipoPago'] as int;
+        final importe = (tipoPago['nImporte'] as double?) ?? 0.0;
+
+        // Obtener acumulado actual
+        final acumulado = await txn.query(
+          'acumcortetipopago',
+          where: 'idCorteCaja = ? AND idTipoPago = ?',
+          whereArgs: [idCorteCaja, idTipoPago],
+          limit: 1,
+        );
+
+        if (acumulado.isNotEmpty) {
+          final importeActual = (acumulado.first['nImporte'] as double?) ?? 0.0;
+          final nuevoImporte = importeActual - importe;
+
+          await txn.update(
+            'acumcortetipopago',
+            {'nImporte': nuevoImporte > 0 ? nuevoImporte : 0},
+            where: 'idCorteCaja = ? AND idTipoPago = ?',
+            whereArgs: [idCorteCaja, idTipoPago],
+          );
+        }
+      }
+
+      if (kDebugMode) {
+        print('✓ Acumulados de tipos de pago actualizados');
+      }
+
+      // 7. Eliminar la relación en cortecajaventa
+      await txn.delete(
+        'cortecajaventa',
+        where: 'idVenta = ?',
+        whereArgs: [idVenta],
+      );
+
+      if (kDebugMode) {
+        print('✓ Venta removida del corte');
+      }
+
+      // 8. Actualizar el importe total del corte
+      await _actualizarImporteCorte(txn, idCorteCaja);
+
+      if (kDebugMode) {
+        print('✓ Importe del corte actualizado');
+      }
+
+      return {
+        'success': true,
+        'idVenta': idVenta,
+        'idCorteCaja': idCorteCaja,
+        'mensaje': 'Venta cancelada exitosamente',
+        'motivo': motivo,
+      };
+    });
+
+    return resultado;
+  }
+
+  /// Actualiza el importe total del corte de caja
+  Future<void> _actualizarImporteCorte(dynamic txn, int idCorteCaja) async {
+    try {
+      // Calcular el total de ventas activas en el corte
+      final result = await txn.rawQuery(
+        '''
+        SELECT COALESCE(SUM(nImporte + nIVA - nDescuento), 0) as total 
+        FROM cortecajaventa 
+        WHERE idCorteCaja = ?
+        ''',
+        [idCorteCaja],
+      );
+
+      final double totalCorte = (result.first['total'] as double?) ?? 0.0;
+
+      // Actualizar el importe del corte
+      await txn.update(
+        'cortecaja',
+        {'nImporte': totalCorte},
+        where: 'idCorteCaja = ?',
+        whereArgs: [idCorteCaja],
+      );
+
+      if (kDebugMode) {
+        print(
+          '💼 Importe del corte actualizado: \$${totalCorte.toStringAsFixed(2)}',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Error al actualizar importe del corte: $e');
+      }
+      throw Exception('Error al actualizar importe del corte: $e');
+    }
+  }
+
+  /// Obtiene el historial de cancelaciones (opcional)
+  Future<List<Map<String, dynamic>>> getHistorialCancelaciones({
+    DateTime? fechaInicio,
+    DateTime? fechaFin,
+  }) async {
+    try {
+      String whereClause = "cEstado = 'CANCELADA'";
+      List<dynamic> whereArgs = [];
+
+      if (fechaInicio != null && fechaFin != null) {
+        final fechaInicioStr = fechaInicio.toIso8601String().split('T')[0];
+        final fechaFinStr = fechaFin.toIso8601String().split('T')[0];
+        whereClause += ' AND dtFecha >= ? AND dtFecha <= ?';
+        whereArgs.addAll([fechaInicioStr, fechaFinStr]);
+      }
+
+      final dbManager = DatabaseManager();
+      final db = await dbManager.database;
+
+      final ventas = await db.query(
+        'venta',
+        where: whereClause,
+        whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+        orderBy: 'dtAlta DESC',
+      );
+
+      return ventas;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error al obtener historial de cancelaciones: $e');
+      }
+      return [];
+    }
+  }
+
+  /// Obtiene estadísticas de cancelaciones
+  Future<Map<String, dynamic>> getEstadisticasCancelaciones({
+    DateTime? fechaInicio,
+    DateTime? fechaFin,
+  }) async {
+    try {
+      final dbManager = DatabaseManager();
+      final db = await dbManager.database;
+
+      String whereClause = '1=1';
+      List<dynamic> whereArgs = [];
+
+      if (fechaInicio != null && fechaFin != null) {
+        final fechaInicioStr = fechaInicio.toIso8601String().split('T')[0];
+        final fechaFinStr = fechaFin.toIso8601String().split('T')[0];
+        whereClause += ' AND dtFecha >= ? AND dtFecha <= ?';
+        whereArgs.addAll([fechaInicioStr, fechaFinStr]);
+      }
+
+      final result = await db.rawQuery('''
+        SELECT 
+          COUNT(CASE WHEN cEstado = 'ACTIVA' THEN 1 END) as ventasActivas,
+          COUNT(CASE WHEN cEstado = 'CANCELADA' THEN 1 END) as ventasCanceladas,
+          COALESCE(SUM(CASE WHEN cEstado = 'CANCELADA' THEN nImporte + nIVA - nDescuento ELSE 0 END), 0) as montoCancelado
+        FROM venta
+        WHERE $whereClause
+        ''', whereArgs.isNotEmpty ? whereArgs : null);
+
+      final data = result.first;
+      return {
+        'ventasActivas': data['ventasActivas'] as int,
+        'ventasCanceladas': data['ventasCanceladas'] as int,
+        'montoCancelado': (data['montoCancelado'] as double?) ?? 0.0,
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error al obtener estadísticas de cancelaciones: $e');
+      }
+      return {'ventasActivas': 0, 'ventasCanceladas': 0, 'montoCancelado': 0.0};
+    }
+  }
+}

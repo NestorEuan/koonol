@@ -7,7 +7,8 @@ class VentaMdl {
   final double nTotalPagado;
   final double nCambio;
   final DateTime dtAlta;
-  final DateTime dtFecha; // Fecha de la venta (sin hora)
+  final DateTime dtFecha;
+  final String cEstado; // NUEVO: 'ACTIVA', 'CANCELADA'
 
   VentaMdl({
     this.idVenta,
@@ -19,6 +20,7 @@ class VentaMdl {
     required this.nCambio,
     required this.dtAlta,
     required this.dtFecha,
+    this.cEstado = 'ACTIVA', // NUEVO: valor por defecto
   });
 
   factory VentaMdl.fromMap(Map<String, dynamic> map) {
@@ -32,6 +34,7 @@ class VentaMdl {
       nCambio: map['nCambio']?.toDouble() ?? 0.0,
       dtAlta: DateTime.parse(map['dtAlta']),
       dtFecha: DateTime.parse(map['dtFecha']),
+      cEstado: map['cEstado'] ?? 'ACTIVA', // NUEVO
     );
   }
 
@@ -45,12 +48,19 @@ class VentaMdl {
       'nTotalPagado': nTotalPagado,
       'nCambio': nCambio,
       'dtAlta': dtAlta.toIso8601String(),
-      'dtFecha': dtFecha.toIso8601String().split('T')[0], // Solo fecha
+      'dtFecha': dtFecha.toIso8601String().split('T')[0],
+      'cEstado': cEstado, // NUEVO
     };
   }
 
   // Método para calcular el total de la venta
   double get total => nImporte + nIVA - nDescuento;
+
+  // NUEVO: Método para verificar si está activa
+  bool get estaActiva => cEstado == 'ACTIVA';
+
+  // NUEVO: Método para verificar si está cancelada
+  bool get estaCancelada => cEstado == 'CANCELADA';
 
   VentaMdl copyWith({
     int? idVenta,
@@ -62,6 +72,7 @@ class VentaMdl {
     double? nCambio,
     DateTime? dtAlta,
     DateTime? dtFecha,
+    String? cEstado, // NUEVO
   }) {
     return VentaMdl(
       idVenta: idVenta ?? this.idVenta,
@@ -73,6 +84,7 @@ class VentaMdl {
       nCambio: nCambio ?? this.nCambio,
       dtAlta: dtAlta ?? this.dtAlta,
       dtFecha: dtFecha ?? this.dtFecha,
+      cEstado: cEstado ?? this.cEstado, // NUEVO
     );
   }
 }
