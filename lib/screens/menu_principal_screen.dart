@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:koonol/screens/consulta_ventas_screen.dart';
+import 'package:koonol/screens/graficos_ventas_screen.dart';
 import '../services/auth_service.dart';
 import 'ventas_screen.dart';
 import 'login_screen.dart';
@@ -68,6 +69,13 @@ class _MenuPrincipalScreenState extends State<MenuPrincipalScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const VentasScreen()),
+    );
+  }
+
+  void _navegarAGraficos() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const GraficosVentasScreen()),
     );
   }
 
@@ -249,11 +257,19 @@ class _MenuPrincipalScreenState extends State<MenuPrincipalScreen> {
           ),
           const SizedBox(height: 16),
           _buildMenuCard(
+            icon: Icons.bar_chart,
+            title: 'Gráficos de Ventas',
+            subtitle: 'Visualizar estadísticas',
+            color: Colors.purple,
+            onTap: _navegarAGraficos,
+          ),
+          const SizedBox(height: 16),
+          _buildMenuCard(
             icon: Icons.receipt_long,
             title: 'Consulta de Ventas',
             subtitle: 'Ver historial de ventas',
             color: Colors.blue,
-            onTap: () => _navegarAConsultaVentas,
+            onTap: _navegarAConsultaVentas,
           ),
           const SizedBox(height: 16),
           _buildMenuCard(
