@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/intl.dart';
 import 'package:koonol/data/database_manager.dart';
 import 'package:koonol/screens/menu_principal_screen.dart';
 import 'services/corte_caja_service.dart';
@@ -18,8 +20,19 @@ class VentasApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Intl.defaultLocale = 'es_MX';
     return MaterialApp(
       title: 'Sistema de Ventas',
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'MX'), // Español
+        Locale('en', 'US'), // Inglés (fallback)
+      ],
+      locale: const Locale('es', 'MX'),
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,

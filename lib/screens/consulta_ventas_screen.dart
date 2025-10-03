@@ -67,7 +67,7 @@ class _ConsultaVentasScreenState extends State<ConsultaVentasScreen> {
       initialDate: esInicio ? _fechaInicio : _fechaFin,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      locale: const Locale('es', 'ES'),
+      //locale: const Locale('es', 'ES'),
     );
 
     if (fechaSeleccionada != null) {
