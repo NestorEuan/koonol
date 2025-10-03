@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../models/carrito_item.dart';
 
 class ArticuloListadoReducidoWidget extends StatefulWidget {

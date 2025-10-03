@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:koonol/data/data_init.dart';
+import 'package:koonol/data/database_manager.dart';
 import 'package:koonol/screens/menu_principal_screen.dart';
 import 'services/corte_caja_service.dart';
 import 'screens/ventas_screen.dart';
@@ -71,17 +71,19 @@ class _AppInitializerState extends State<AppInitializer> {
   @override
   void initState() {
     super.initState();
-    // No inicializamos aquí, lo haremos desde el splash
+    // La inicialización se hace desde el splash screen
   }
 
   /// Inicializa la aplicación (base de datos y servicios)
   Future<void> _initializeApp() async {
     try {
-      // 1. Inicializar la base de datos
+      // 1. Inicializar la base de datos usando el nuevo método consolidado
       if (kDebugMode) {
         print('🚀 Inicializando base de datos...');
       }
-      await DataInit.initDb();
+
+      // Usar el nuevo método estático de DatabaseManager
+      await DatabaseManager.initialize(forceRecreate: false);
 
       // 2. Inicializar el sistema de cortes de caja
       if (kDebugMode) {
@@ -145,8 +147,6 @@ class _AppInitializerState extends State<AppInitializer> {
       });
     }
 
-    // Mostrar pantalla principal
-    //return const VentasScreen();
     // Verificar si hay sesión activa
     return FutureBuilder<bool>(
       future: _verificarSesion(),
@@ -157,7 +157,7 @@ class _AppInitializerState extends State<AppInitializer> {
           );
         }
 
-        // Si hay sesión activa, ir a VentasScreen, si no, ir a LoginScreen
+        // Si hay sesión activa, verificar el rol del usuario
         if (snapshot.data == true) {
           return FutureBuilder<String?>(
             future: _obtenerRolUsuario(),
@@ -186,7 +186,7 @@ class _AppInitializerState extends State<AppInitializer> {
     );
   }
 
-  // Verifica si hay una sesión activa
+  /// Verifica si hay una sesión activa
   Future<bool> _verificarSesion() async {
     try {
       final authService = await AuthService.getInstance();
@@ -199,7 +199,7 @@ class _AppInitializerState extends State<AppInitializer> {
     }
   }
 
-  // Agregar este método después de _verificarSesion
+  /// Obtiene el rol del usuario actual
   Future<String?> _obtenerRolUsuario() async {
     try {
       final authService = await AuthService.getInstance();

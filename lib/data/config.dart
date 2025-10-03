@@ -7,6 +7,9 @@ class AppConfig {
   static bool permitirVentasNegativas = false;
   static double margenMinimoPermitido = 0.0;
 
+  // NUEVO: Control de vista simplificada para kilo de huevo
+  static bool mostrarVistaSimplificada = true; // Cambiar a true para habilitar
+
   static void habilitarValidacionExistencia() {
     validarExistencia = true;
   }

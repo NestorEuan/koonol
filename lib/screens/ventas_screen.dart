@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:koonol/data/config.dart';
 import 'package:koonol/screens/articulos_screen.dart';
 import 'package:koonol/screens/carrito_screen.dart';
 import 'package:koonol/screens/finalizar_venta.dart';
@@ -8,6 +9,9 @@ import 'package:koonol/services/auth_service.dart';
 import '../models/cliente.dart';
 import '../models/carrito_item.dart';
 import '../widgets/cliente_search_widget.dart';
+import '../widgets/articulo_kilo_widget.dart';
+import '../models/articulo_mdl.dart';
+import '../data/articulo.dart';
 
 class VentasScreen extends StatefulWidget {
   const VentasScreen({super.key});
@@ -19,11 +23,13 @@ class VentasScreen extends StatefulWidget {
 class _VentasScreenState extends State<VentasScreen> {
   Cliente? _clienteSeleccionado;
   List<CarritoItem> _carrito = [];
+  bool _vistaSimplificada = AppConfig.mostrarVistaSimplificada;
+  ArticuloMdl? _articuloKilo; // Artículo "Kilo de huevo"
 
   @override
   void initState() {
     super.initState();
-    _cargarArticulos();
+    _cargarArticuloKilo();
   }
 
   @override
@@ -31,15 +37,27 @@ class _VentasScreenState extends State<VentasScreen> {
     super.dispose();
   }
 
-  void _cargarArticulos() {
-    setState(() {});
+  // Cargar el artículo "Kilo de huevo"
+  Future<void> _cargarArticuloKilo() async {
+    try {
+      final articuloRepo = await Articulo.getInstance();
+      final articulos = await articuloRepo.searchByCodigo('kl');
 
-    // Simulamos un pequeño delay para mostrar el loading
-    Future.delayed(const Duration(milliseconds: 500), () {
-      setState(() {
-        // _articulos = DataProvider.getArticulos();
-      });
-    });
+      if (articulos.isNotEmpty) {
+        setState(() {
+          _articuloKilo = articulos.first;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar artículo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _onClienteSelected(Cliente? cliente) {
@@ -107,6 +125,46 @@ class _VentasScreenState extends State<VentasScreen> {
     );
   }
 
+  void _agregarAlCarrito(ArticuloMdl articulo, double cantidad, double precio) {
+    setState(() {
+      final int index = _carrito.indexWhere(
+        (item) => item.articulo.idArticulo == articulo.idArticulo,
+      );
+
+      if (index >= 0) {
+        _carrito[index] = CarritoItem(
+          articulo: articulo,
+          cantidad: _carrito[index].cantidad + cantidad,
+          precioVenta: precio,
+        );
+      } else {
+        _carrito.add(
+          CarritoItem(
+            articulo: articulo,
+            cantidad: cantidad,
+            precioVenta: precio,
+          ),
+        );
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${articulo.cDescripcion} agregado al carrito'),
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  double _getCantidadEnCarrito(int? articuloId) {
+    if (articuloId == null) return 0;
+    final item = _carrito.where(
+      (item) => item.articulo.idArticulo == articuloId,
+    );
+    return item.isEmpty ? 0 : item.first.cantidad;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,6 +177,22 @@ class _VentasScreenState extends State<VentasScreen> {
           tooltip: 'Menú',
         ),
         actions: [
+          // Botón de cambio de vista (solo si está habilitado en config)
+          if (AppConfig.mostrarVistaSimplificada)
+            IconButton(
+              icon: Icon(
+                _vistaSimplificada ? Icons.grid_view : Icons.view_agenda,
+              ),
+              onPressed: () {
+                setState(() {
+                  _vistaSimplificada = !_vistaSimplificada;
+                });
+              },
+              tooltip: _vistaSimplificada
+                  ? 'Vista completa'
+                  : 'Vista simplificada',
+            ),
+
           // Botón del carrito
           Stack(
             children: [
@@ -159,15 +233,19 @@ class _VentasScreenState extends State<VentasScreen> {
             onClienteSelected: _onClienteSelected,
             clienteSeleccionado: _clienteSeleccionado,
           ),
+
+          // Contenido dinámico según la vista seleccionada
           Expanded(
-            child: ArticulosWidget(
-              carrito: _carrito,
-              onCarritoChanged: (carritoActualizado) {
-                setState(() {
-                  _carrito = carritoActualizado;
-                });
-              },
-            ),
+            child: _vistaSimplificada
+                ? _buildVistaSimplificada()
+                : ArticulosWidget(
+                    carrito: _carrito,
+                    onCarritoChanged: (carritoActualizado) {
+                      setState(() {
+                        _carrito = carritoActualizado;
+                      });
+                    },
+                  ),
           ),
         ],
       ),
@@ -232,6 +310,18 @@ class _VentasScreenState extends State<VentasScreen> {
     );
   }
 
+  Widget _buildVistaSimplificada() {
+    if (_articuloKilo == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return ArticuloKiloWidget(
+      articulo: _articuloKilo!,
+      onAddToCart: _agregarAlCarrito,
+      cantidadEnCarrito: _getCantidadEnCarrito(_articuloKilo!.idArticulo),
+    );
+  }
+
   void _mostrarMenuOpciones(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -286,14 +376,11 @@ class _VentasScreenState extends State<VentasScreen> {
       final authService = await AuthService.getInstance();
       final usuario = authService.usuarioActual ?? '';
 
-      // Guardar referencia al ScaffoldMessenger ANTES del await
       final scaffoldMessenger = ScaffoldMessenger.of(context);
       final navigator = Navigator.of(context);
 
-      // Verificar mounted después de operaciones asíncronas
       if (!mounted) return;
 
-      // Si es cajero, mostrar mensaje (ya está en inicio)
       if (usuario.toLowerCase() == 'cajero') {
         scaffoldMessenger.showSnackBar(
           const SnackBar(
@@ -305,7 +392,6 @@ class _VentasScreenState extends State<VentasScreen> {
         return;
       }
 
-      // Si es administrador, ir al menú principal
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const MenuPrincipalScreen()),
         (route) => false,

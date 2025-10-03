@@ -35,7 +35,7 @@ class ArticuloController {
     _precio = articulo.nPrecio;
     _precioController = TextEditingController(text: _precio.toStringAsFixed(2));
     _cantidadController = TextEditingController(
-      text: _cantidad.toStringAsFixed(2),
+      text: '0', // _cantidad.toStringAsFixed(2),
     );
   }
 

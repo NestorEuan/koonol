@@ -15,7 +15,6 @@ class CancelarVentaDialog extends StatefulWidget {
 class _CancelarVentaDialogState extends State<CancelarVentaDialog> {
   final _motivoController = TextEditingController();
   bool _isProcessing = false;
-  bool _mostrarDetalle = false;
   Map<String, dynamic>? _detalleVenta;
   final _dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 

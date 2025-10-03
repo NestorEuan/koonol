@@ -266,7 +266,7 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
               onPressed: () {
                 Navigator.of(context).pop();
                 widget.onVentaFinalizada();
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                Navigator.of(context).pop();
               },
               child: const Text('Nueva Venta'),
             ),
