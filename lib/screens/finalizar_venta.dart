@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:koonol/widgets/total_venta_widget.dart';
+import 'package:koonol/widgets/validacion_cobro_widget.dart';
 import '../models/carrito_item.dart';
 import '../models/cliente.dart';
 import '../models/tipo_pago_mdl.dart';
@@ -407,28 +409,10 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
   }
 
   Widget _buildTotalVenta(double total) {
-    return Card(
-      color: Colors.green.withOpacity(0.1),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Total de la Venta:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              '\$${total.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return TotalVentaWidget(
+      total: total,
+      label: 'Total de la Venta:',
+      icon: Icons.shopping_cart,
     );
   }
 
@@ -542,147 +526,24 @@ class _FinalizarVentaScreenState extends State<FinalizarVentaScreen> {
   }
 
   Widget _buildEstadoPago(double totalPagos, double diferencia) {
-    final color = _getEstadoPagoColor();
-    final estado = _getEstadoPagoTexto();
-
-    return Card(
-      color: color.withOpacity(0.1),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total Pagos:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '\$${totalPagos.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Estado:',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                ),
-                Text(
-                  estado,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-            if (diferencia != 0) ...[
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    diferencia > 0 ? 'Exceso:' : 'Faltante:',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                  Text(
-                    '\$${diferencia.abs().toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: diferencia > 0 ? Colors.blue : Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
+    return ValidacionCobroWidget(
+      totalVenta: _calcularTotal(),
+      totalPagos: totalPagos,
+      cambio: _calcularCambio(),
+      montoEfectivo: _getMontoEfectivo(),
+      mostrarCambio: false, // No mostrar cambio aquí
+      compacto: false,
     );
   }
 
   Widget _buildCambio(double cambio) {
-    final montoEfectivo = _getMontoEfectivo();
-    final totalPagos = _calcularTotalPagos();
-    final total = _calcularTotal();
-    final exceso = totalPagos - total;
-
-    return Card(
-      color: Colors.blue.withOpacity(0.1),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.change_circle, color: Colors.blue),
-                SizedBox(width: 8),
-                Text(
-                  'Cambio a Entregar',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Cambio:',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  '\$${cambio.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-              ],
-            ),
-            // Advertencia si el exceso es mayor al efectivo
-            if (exceso > montoEfectivo && montoEfectivo > 0) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning, color: Colors.red, size: 16),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Cambio limitado al efectivo recibido: \$${montoEfectivo.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return ValidacionCobroWidget(
+      totalVenta: _calcularTotal(),
+      totalPagos: _calcularTotalPagos(),
+      cambio: cambio,
+      montoEfectivo: _getMontoEfectivo(),
+      mostrarCambio: true, // Solo mostrar el cambio
+      compacto: false,
     );
   }
 

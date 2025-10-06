@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:koonol/screens/consulta_ventas_screen.dart';
 import 'package:koonol/screens/graficos_ventas_screen.dart';
+import 'package:koonol/screens/venta_simple_screen.dart';
 import '../services/auth_service.dart';
 import 'ventas_screen.dart';
 import 'login_screen.dart';
@@ -68,7 +69,7 @@ class _MenuPrincipalScreenState extends State<MenuPrincipalScreen> {
   void _navegarAVentas() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const VentasScreen()),
+      MaterialPageRoute(builder: (context) => const VentaSimpleScreen()),
     );
   }
 

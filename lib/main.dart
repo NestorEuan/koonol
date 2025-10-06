@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:koonol/data/database_manager.dart';
 import 'package:koonol/screens/menu_principal_screen.dart';
+import 'package:koonol/screens/venta_simple_screen.dart';
 import 'services/corte_caja_service.dart';
 import 'screens/ventas_screen.dart';
 import 'screens/splash_screen.dart';
@@ -185,7 +186,7 @@ class _AppInitializerState extends State<AppInitializer> {
 
               // Si es cajero, ir directo a VentasScreen
               if (usuario.toLowerCase() == 'cajero') {
-                return const VentasScreen();
+                return const VentaSimpleScreen();
               }
 
               // Si es administrador (luis), ir al menú principal

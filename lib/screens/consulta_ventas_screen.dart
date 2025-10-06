@@ -103,12 +103,6 @@ class _ConsultaVentasScreenState extends State<ConsultaVentasScreen> {
     );
   }
 
-  void _mostrarExito(String mensaje) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje), backgroundColor: Colors.green),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
